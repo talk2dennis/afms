@@ -22,7 +22,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-   const { signOut } = useSession();
+   const { signOut, userData } = useSession();
 
   const params = {
 	latitude: 5.89,
@@ -96,6 +96,9 @@ export default function HomePage() {
       <View style={styles.center}>
         <Ionicons name="warning-outline" size={40} color="red" />
         <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity onPress={() => { fetchWeatherApi(url, params); setLoading(true); }}>
+          <Text style={{ color: "blue", marginTop: 10 }}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -177,7 +180,7 @@ export default function HomePage() {
       {/* Sign Out */}
       <TouchableOpacity style={styles.logoutBtn} onPress={signOut}>
         <Ionicons name="log-out-outline" size={20} color="#fff" />
-        <Text style={styles.logoutText}>Sign Out</Text>
+        <Text style={styles.logoutText}>Sign Out {userData?.name}</Text>
       </TouchableOpacity>
     </ScrollView>
     );

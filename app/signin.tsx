@@ -2,26 +2,42 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ToastAndroid, ScrollView, KeyboardAvoidingView, Platform, Image } from "react-native";
 import { Link } from "expo-router";
 import colors from "../assets/colors";
-import { useSession } from "./auth/context";
+import { useSession, users } from "./auth/context";
+import Loading from "./components/loading"
+
+
 
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const { signIn } = useSession();
 
   const handleLogin = () => {
     // handle login logic
     // check that all fields are filled
+    setLoading(true);
     if (!email || !password) {
         ToastAndroid.show("Please fill all fields", ToastAndroid.SHORT);
+        setLoading(false);
         return;
     }
-    console.log("Login:", email, password);
-    signIn();
+    // check if user exists
+    const user = users.find((u) => u.email === email.toLowerCase());
+    if (!user) {
+        ToastAndroid.show("User not found", ToastAndroid.SHORT);
+        setLoading(false);
+        return;
+    }
+    signIn({ ...user, role: (user.role as "admin" | "user" | undefined) });
+    setLoading(false);
   };
 
+  if (loading) {
+    return <Loading />;
+  }
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
         <ScrollView contentContainerStyle={{flexGrow: 1}}>
@@ -37,6 +53,7 @@ export default function LoginPage() {
       <TextInput
         style={styles.input}
         placeholder="Email"
+        autoCapitalize="none"
         placeholderTextColor={colors.gray}
         keyboardType="email-address"
         value={email}
