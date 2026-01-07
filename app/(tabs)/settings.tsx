@@ -172,6 +172,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f2f4f7",
     padding: 16,
+    marginBottom: 20,
   },
 
   avatarContainer: {
@@ -222,6 +223,5 @@ const styles = StyleSheet.create({
 
   actionText: {
     fontSize: 14,
-    marginBottom: 12,
   },
 });

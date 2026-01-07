@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/afms_splash.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#abdbe3"
     },
     "ios": {
@@ -18,7 +18,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/afms_splash.png",
+        "foregroundImage": "./assets/afms_logo.png",
         "backgroundColor": "#abdbe3"
       },
       "edgeToEdgeEnabled": true,

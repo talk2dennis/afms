@@ -1,3 +1,4 @@
+import React from "react";
 import { use, createContext, type PropsWithChildren, useState } from 'react';
 
 import { useStorageState } from './useStorageState';
@@ -32,6 +33,21 @@ type User = {
   state?: string;
   gsm?: string;
   role?: 'admin' | 'user';
+};
+
+export const weatherContext = {
+  location: "Ikeja, Lagos",
+  current: {
+    condition: "Heavy Rain",
+    rainfall_mm: 28,
+    temperature: 26,
+  },
+  forecast: [
+    { day: "Today", rain_mm: 28 },
+    { day: "Tomorrow", rain_mm: 35 },
+    { day: "Wednesday", rain_mm: 10 },
+  ],
+  floodRisk: "High",
 };
 
 const AuthContext = createContext<{

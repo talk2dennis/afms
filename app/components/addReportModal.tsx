@@ -1,3 +1,4 @@
+import React from "react";
 import { Modal, View, Image, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";

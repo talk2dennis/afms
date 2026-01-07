@@ -1,3 +1,4 @@
+import React from "react";
 import { View, Text, Image, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSession } from "../auth/context";

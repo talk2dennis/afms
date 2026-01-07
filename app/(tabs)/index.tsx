@@ -1,3 +1,4 @@
+import React from "react";
 import { Text, View, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { useEffect, useState } from "react";
 import { useSession } from "../auth/context";
