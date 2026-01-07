@@ -15,11 +15,11 @@ export default function LoadingComponent() {
         {/* Title */}
         <Animated.View style={[styles.skeleton, { width: "90%", height: 72, marginBottom: 16 }]} />
         {/* Subtitle */}
-        <Animated.View style={[styles.skeleton, { width: "40%", height: 20, marginBottom: 32 }]} />
+        <Animated.View style={[styles.skeleton, { width: "90%", height: 20, marginBottom: 32 }]} />
 
         {/* Input fields */}
-        <Animated.View style={[styles.skeleton, { width: "40%", height: 70, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 100, marginBottom: 16 }]} />
+        <Animated.View style={[styles.skeleton, { width: "50%", height: 70, marginBottom: 16 }]} />
+        <Animated.View style={[styles.skeleton, { width: "50%", height: 100, marginBottom: 16 }]} />
         <Animated.View style={[styles.skeleton, { width: "90%", height: 50, marginBottom: 16 }]} />
         <Animated.View style={[styles.skeleton, { width: "90%", height: 60, marginBottom: 16 }]} />
         <Animated.View style={[styles.skeleton, { width: "90%", height: 70, marginBottom: 16 }]} />

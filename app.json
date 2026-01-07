@@ -3,7 +3,7 @@
     "name": "afms",
     "slug": "afms",
     "scheme": "afms",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/afms_logo.png",
     "userInterfaceStyle": "light",

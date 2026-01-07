@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSession } from "../auth/context";
 import { useEffect, useState } from "react";
 import Loading from "../components/loading";
+import AddReportModal from "../components/addReportModal";
 import sampleReports, { addReport, getReports, approveReport, disapproveReport, deleteReport, voteReport } from "../data/report_data";
 
 export default function ReportPage() {
@@ -11,33 +12,30 @@ export default function ReportPage() {
     const [loading, setLoading] = useState(true);
     const [reports, setReports] = useState(sampleReports);
     const [updated, setUpdated] = useState(false);
-    const [visibleReports, setVisibleReports] = useState(sampleReports);
+    const [showModal, setShowModal] = useState(false);
 
     const {signOut} = useSession();
 
     // hadle adding a new report
-    const handleAddReport = () => {
+    const handleAddReport = (data:{title: string; description: string; state: string; lga: string; img: string}) => 
+      {
         setLoading(true);
         const newReport = {
+        ...data,
+        imageUrl: data.img || "https://via.placeholder.com/150",
         id: (Date.now()).toString(),
-        title: "Flood in Ikeja",
-        description: "Road submerged after heavy rain",
-        imageUrl: "https://via.placeholder.com/400",
-        state: "Lagos",
-        lga: "Ikeja",
         createdBy: user!.id,
         approved: false,
         upvotes: 0,
         downvotes: 0,
         votes: {},
-    };
-    // set time out to simulate network request
-    setTimeout(() => {
+      };
         addReport(newReport);
+        setShowModal(false);
         setUpdated(!updated);
         setLoading(false);
-    }, 2000);
     };
+    
 
     // handle voting on a report
     const handleVote = (reportId: string, userId: string, voteType: "up" | "down") => {
@@ -63,6 +61,7 @@ export default function ReportPage() {
             setLoading(false);
         }, 2000);
     };
+
     
     // get updated reports if report is added/deleted/approved/voted
     useEffect(() => {
@@ -82,9 +81,14 @@ export default function ReportPage() {
             <View style={styles.center}>
                 <Ionicons name="information-circle-outline" size={40} color="#777" />
                 <Text style={{ marginTop: 10, fontSize: 16, color: "#777" }}>No reports available.</Text>
-                <TouchableOpacity style={{ marginTop: 20 }} onPress={handleAddReport}>
+                <TouchableOpacity style={{ marginTop: 20 }} onPress={() => setShowModal(true)}>
                     <Text style={{ color: "#1e90ff" }}>Add a Report</Text>
                 </TouchableOpacity>
+                <AddReportModal
+                  visible={showModal}
+                  onClose={() => setShowModal(false)}
+                  addReport={handleAddReport}
+                />
             </View>
         );
     }
@@ -187,11 +191,15 @@ export default function ReportPage() {
       }
     />
     <View style={styles.fab}>
-        <TouchableOpacity style={styles.fabBtn} onPress={handleAddReport}>
+        <TouchableOpacity style={styles.fabBtn} onPress={() => setShowModal(true)}>
             <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
     </View>
-
+      <AddReportModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        addReport={handleAddReport}
+      />
     </View>
   );
 }

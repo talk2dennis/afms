@@ -28,6 +28,9 @@ type User = {
   id: string;
   name: string;
   email: string;
+  lga?: string;
+  state?: string;
+  gsm?: string;
   role?: 'admin' | 'user';
 };
 
@@ -35,6 +38,7 @@ const AuthContext = createContext<{
   signIn: (user: User) => void;
   signOut: () => void;
   session?: string | null;
+  isAuthenticated?: boolean;
   isLoading: boolean;
   userData?: User | null;
 }>({
@@ -43,6 +47,7 @@ const AuthContext = createContext<{
   session: null,
   isLoading: false,
   userData: null,
+  isAuthenticated: false,
 });
 
 // Use this hook to access the user info.
@@ -59,6 +64,11 @@ export default function SessionProvider({ children }: PropsWithChildren) {
   const [[isLoading, session], setSession] = useStorageState('session-token');
   const [loading, setLoading ] = useState(false);
   const [userData, setUserData] = useState<User | null>(null);
+
+  // if user is null but session exists, for now clear the session
+  if (!userData && session) {
+    setSession(null);
+  }
 
 
   return (
@@ -82,9 +92,11 @@ export default function SessionProvider({ children }: PropsWithChildren) {
             setLoading(false);
           }, 2000);
         },
+        
         session,
         isLoading : isLoading || loading,
-        userData: userData
+        userData: userData,
+        isAuthenticated: !!session || !!userData,
       }}>
       {children}
     </AuthContext.Provider>

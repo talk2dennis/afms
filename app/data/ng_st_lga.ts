@@ -1,4 +1,4 @@
-[
+const statesLGAs = [
   {
     "state": "Adamawa",
     "alias": "adamawa",
@@ -996,3 +996,5 @@
     ]
   }
 ]
+
+export default statesLGAs;

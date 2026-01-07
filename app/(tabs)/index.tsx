@@ -24,6 +24,10 @@ export default function HomePage() {
 
    const { signOut, userData } = useSession();
 
+   if (!userData) {
+    signOut();
+  }
+
   const params = {
 	latitude: 5.89,
 	longitude: 5.68,

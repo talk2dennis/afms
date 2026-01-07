@@ -18,16 +18,16 @@ export default function Layout() {
 }
 
 function RootNavigator() {
-  const { session, isLoading } = useSession();
+  const { isAuthenticated, isLoading } = useSession();
   if (isLoading)
     return <LoadingComponent />;
   
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={!!session}>
+      <Stack.Protected guard={!!isAuthenticated}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack.Protected>
-      <Stack.Protected guard={!session}>
+      <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen name="signin" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
