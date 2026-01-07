@@ -4,6 +4,7 @@ import ChatBubble from "../components/chatBubble";
 import ChatInput from "../components/chatInput";
 import ChatHeader from "../components/chatHeader";
 import mockAIResponse from "../data/mockAI";
+import speak from "../utils/speak";
 
 type Message = {
   id: string;
@@ -30,12 +31,14 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMsg]);
 
     setTimeout(() => {
+      const response = mockAIResponse(text);
       const aiMsg: Message = {
         id: Math.random().toString(),
-        text: mockAIResponse(text),
+        text: response,
         sender: "ai",
       };
       setMessages(prev => [...prev, aiMsg]);
+      speak(response);
     }, 800);
   };
 
