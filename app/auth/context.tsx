@@ -41,6 +41,7 @@ type User = {
   lga?: string
   state?: string
   gsm?: string
+  location?: { latitude: number; longitude: number }
   role?: 'admin' | 'user'
 }
 
