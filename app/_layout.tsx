@@ -23,12 +23,20 @@ function RootNavigator() {
     return <LoadingComponent />;
   
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack>
       <Stack.Protected guard={!!isAuthenticated}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated}>
-        <Stack.Screen name="signin" options={{ headerShown: false }} />
+        <Stack.Screen name="signin" options={{ headerShown: false, headerSearchBarOptions: {
+          placeholder: "Search",
+          hideWhenScrolling: true,
+          obscureBackground: true,
+          autoCapitalize: "none",
+        } }} />
+        <Stack.Screen name="register" options={{ headerShown: true, title: "Register" }} />
+        <Stack.Screen name="forgot_password" options={{ headerShown: true, title: "Forgot Password" }} />
+        <Stack.Screen name="addReport" options={{ title: "Add Report", presentation: "modal" }} />
       </Stack.Protected>
     </Stack>
   );

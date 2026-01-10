@@ -1,5 +1,4 @@
-import React from "react";
-import { Modal, View, Image, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import { Modal, View, Image, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -48,6 +47,7 @@ export default function AddReportModal({ visible, onClose, addReport }: Props) {
   };
 
   return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
     <Modal visible={visible} animationType="slide" transparent>
       <View style={styles.overlay}>
         <View style={styles.container}>
@@ -124,6 +124,7 @@ export default function AddReportModal({ visible, onClose, addReport }: Props) {
         </View>
       </View>
     </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -184,10 +185,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    marginVertical: 12,
   },
 
   imagePreview: {
     height: "100%",
+    width: "100%",
     borderRadius: 12,
     marginVertical: 10,
   },

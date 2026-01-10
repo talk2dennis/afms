@@ -18,8 +18,7 @@ export default function LoadingComponent() {
         <Animated.View style={[styles.skeleton, { width: "90%", height: 20, marginBottom: 32 }]} />
 
         {/* Input fields */}
-        <Animated.View style={[styles.skeleton, { width: "50%", height: 70, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "50%", height: 100, marginBottom: 16 }]} />
+        <Animated.View style={[styles.skeleton, { width: "90%", height: 10, marginBottom: 16 }]} />
         <Animated.View style={[styles.skeleton, { width: "90%", height: 50, marginBottom: 16 }]} />
         <Animated.View style={[styles.skeleton, { width: "90%", height: 60, marginBottom: 16 }]} />
         <Animated.View style={[styles.skeleton, { width: "90%", height: 70, marginBottom: 16 }]} />

@@ -1,7 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { View, ScrollView, Text, TextInput, TouchableOpacity, StyleSheet, ToastAndroid, KeyboardAvoidingView, Image,Platform } from "react-native";
 import { Link } from "expo-router";
 import colors from "../assets/colors";
+import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
+import statesLGAs from "./data/ng_st_lga";
 
 export default function RegisterPage({ navigation }: any) {
   const [name, setName] = useState("");
@@ -9,11 +12,14 @@ export default function RegisterPage({ navigation }: any) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState({});
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedLga, setSelectedLga] = useState("");
+  const [gsm, setGsm] = useState("");
+  const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [page, setPage] = useState(1);
+
+  const lgaOptions = statesLGAs.find(s => s.state === selectedState)?.lgas || [];
 
   // handle page change
   const handleNextPage = () => {
@@ -64,6 +70,15 @@ export default function RegisterPage({ navigation }: any) {
 
       <TextInput
         style={styles.input}
+        placeholder="Phone Number"
+        placeholderTextColor={colors.gray}
+        keyboardType="phone-pad"
+        value={gsm}
+        onChangeText={setGsm}
+      />
+
+      <TextInput
+        style={styles.input}
         placeholder="Email"
         placeholderTextColor={colors.gray}
         keyboardType="email-address"
@@ -88,34 +103,55 @@ export default function RegisterPage({ navigation }: any) {
         onChangeText={setConfirmPassword}
       />
 
+      {/* State Picker */}
+          <View style={styles.pickerWrapper}>
+            <Picker
+              selectedValue={selectedState}
+              onValueChange={(value) => {
+                setSelectedState(value);
+                setSelectedLga("");
+              }}
+            >
+              <Picker.Item label="Select State" value="" />
+              {statesLGAs.map((s) => (
+                <Picker.Item key={s.alias} label={s.state} value={s.state} />
+              ))}
+            </Picker>
+          </View>
+
+          {/* LGA Picker */}
+          <View style={styles.pickerWrapper}>
+            <Picker
+              enabled={!!selectedState}
+              selectedValue={selectedLga}
+              onValueChange={setSelectedLga}
+            >
+              <Picker.Item label="Select LGA" value="" />
+              {lgaOptions.map((lga) => (
+                <Picker.Item key={lga} label={lga} value={lga} />
+              ))}
+            </Picker>
+          </View>
+
       <TouchableOpacity style={styles.button} onPress={handleRegister}>
         <Text style={styles.buttonText}>Register</Text>
       </TouchableOpacity>
-
-      <View style={styles.footer}>
-        <Text style={{ color: colors.black }}>Already have an account?</Text>
-        <TouchableOpacity>
-            <Link href="/signin" asChild>
-          <Text style={{ color: colors.secondary, marginLeft: 5, paddingHorizontal: 10 }}>Login</Text>
-          </Link>
-        </TouchableOpacity>
-      </View>
     </View>
     </ScrollView>
     </KeyboardAvoidingView>
     
-  );
+  ); 
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.white,
-    padding: 24,
+    paddingHorizontal: 12,
+    paddingBottom: 24,
   },
    header: {
     alignItems: "center",
-    paddingVertical: 20,
     marginBottom: 20,
   },
   title: {
@@ -135,6 +171,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     color: colors.black
+  },
+  pickerWrapper: {
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    marginBottom: 12,
   },
   button: {
     backgroundColor: colors.secondary,
