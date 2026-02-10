@@ -23,7 +23,7 @@ export default function SettingsPage () {
   const [user, setUser] = useState({
     name: userData?.name || '',
     email: userData?.email || '',
-    gsm: userData?.gsm || '',
+    phone: userData?.phone || '',
     state: userData?.state || '',
     lga: userData?.lga || '',
     bio: '',
@@ -98,8 +98,8 @@ export default function SettingsPage () {
         />
         <TextInput
           style={styles.input}
-          value={user.gsm}
-          onChangeText={val => setUser({ ...user, gsm: val })}
+          value={user.phone}
+          onChangeText={val => setUser({ ...user, phone: val })}
           placeholder='Phone Number'
         />
         <TextInput

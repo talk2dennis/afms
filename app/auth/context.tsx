@@ -1,4 +1,3 @@
-import React from 'react'
 import { use, createContext, type PropsWithChildren, useState } from 'react'
 
 import { useStorageState } from './useStorageState'
@@ -8,41 +7,41 @@ export const users = [
     id: '1',
     name: 'Admin User',
     email: 'admin@test.com',
-    role: 'admin',
+    role: 'ADMIN',
     state: 'Lagos',
     lga: 'Ikeja',
-    gsm: '08012345678'
+    phone: '08012345678'
   },
   {
     id: '2',
     name: 'Dennis',
     email: 'dennis@test.com',
-    role: 'user',
+    role: 'USER',
     state: 'Delta',
     lga: 'Sapele',
-    gsm: '08012345678'
+    phone: '08012345678'
   },
   {
     id: '3',
     name: 'guest',
     email: 'guest@example.com',
-    role: 'user',
+    role: 'USER',
     state: 'Abuja',
     lga: 'Gwagwalada',
-    gsm: '08012345678'
+    phone: '08012345678'
   }
 ]
 
 // type user
-type User = {
+export type User = {
   id: string
   name: string
   email: string
   lga?: string
   state?: string
-  gsm?: string
+  phone?: string
   location?: { latitude: number; longitude: number }
-  role?: 'admin' | 'user'
+  role?: 'ADMIN' | 'USER'
 }
 
 export const weatherContext = {
@@ -61,14 +60,14 @@ export const weatherContext = {
 }
 
 const AuthContext = createContext<{
-  signIn: (user: User) => void
+  signIn: (user: User, token: string) => void
   signOut: () => void
   session?: string | null
   isAuthenticated?: boolean
   isLoading: boolean
   userData?: User | null
 }>({
-  signIn: (user: User) => null,
+  signIn: (user: User, token: string) => null,
   signOut: () => null,
   session: null,
   isLoading: false,
@@ -99,14 +98,14 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
   return (
     <AuthContext.Provider
       value={{
-        signIn: (user: User) => {
+        signIn: (user: User, token: string) => {
           setLoading(true)
           setUserData(user)
-          // delay for 2 seconds to simulate sign in process
-          setTimeout(() => {
-            setSession('dummy-session-token')
-            setLoading(false)
-          }, 2000)
+          // log the user data and token for debugging
+          console.log('userdata', user)
+
+          setSession(token)
+          setLoading(false)
         },
         signOut: () => {
           setLoading(true)

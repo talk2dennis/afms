@@ -58,10 +58,10 @@ export default function HomePage () {
 
         let loc = await Location.getCurrentPositionAsync({})
         setLocation(loc)
-        console.log('Location obtained:', loc)
+        // console.log('Location obtained:', loc)
       } catch (err) {
         setError('Failed to get location')
-        console.error(err)
+        // console.error(err)
         setLoading(false)
       }
     }
@@ -119,6 +119,7 @@ export default function HomePage () {
         setWeatherData(data)
       } catch (err) {
         setError('Failed to fetch weather data.')
+        console.error(err)
       } finally {
         setLoading(false)
       }
@@ -137,7 +138,7 @@ export default function HomePage () {
         }
       }
     }
-  }, [location])
+  }, [])
 
   if (loading) {
     return <LoadingComponent />

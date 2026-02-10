@@ -8,8 +8,6 @@ const createAxiosClient = (session: string | null): AxiosInstance => {
     baseURL: baseURL
   })
 
-  // log the url
-  console.log(`Axios client created with base URL: ${client.defaults.baseURL}`)
   if (session) {
     client.defaults.headers.common['Authorization'] = `Bearer ${session}`
   }
@@ -17,8 +15,8 @@ const createAxiosClient = (session: string | null): AxiosInstance => {
   client.interceptors.response.use(
     response => {
       if (response.config.url?.includes('/login') && response.data?.token) {
-        // login response, set the token for future requests
-        console.log(`Setting session token: ${response.data.token}`)
+        // // login response, set the token for future requests
+        // console.log(`Setting session token: ${response.data.token}`)
         client.defaults.headers.common[
           'Authorization'
         ] = `Bearer ${response.data.token}`

@@ -16,7 +16,7 @@ import {
 import { Link } from 'expo-router'
 import colors from '../assets/colors'
 import { useSession, users } from './auth/context'
-import Loading from './components/loading'
+import { useStorageState } from './auth/useStorageState'
 
 export default function LoginPage () {
   const [email, setEmail] = useState('')
@@ -24,15 +24,29 @@ export default function LoginPage () {
   const [loading, setLoading] = useState(false)
 
   const { signIn } = useSession()
+  const [session] = useStorageState('session-token')
+  // create axiosClient
+  const client = createAxiosClient(null)
 
   const guest = users.find(u => u.email === 'guest@example.com')
-
   // handle guest login
   const handleGuestLogin = () => {
     if (guest) {
-      signIn({ ...guest, role: guest.role as 'admin' | 'user' | undefined })
+      signIn(
+        { ...guest, role: guest.role as 'ADMIN' | 'USER' | undefined },
+        'dummy-session-token'
+      )
     }
   }
+
+  // if session exists, login user
+  // const sessionLogin = () = {
+  //   client.get('auth/login')
+  //     .then(res => {
+  //       const user = res.data.user
+  //       signIn(user, res.data.token)
+  //     })
+  // }
 
   const handleLogin = () => {
     // handle login logic
@@ -44,18 +58,19 @@ export default function LoginPage () {
       return
     }
     // call login api
-    const client = createAxiosClient(null)
     client
       .post('auth/login', { email, password })
       .then(res => {
-        const user = res.data
-        signIn({ ...user, role: user.role as 'admin' | 'user' | undefined })
+        const user = res.data.user
+        signIn(user, res.data.token)
+        // toast success message
+        ToastAndroid.show('Login successful', ToastAndroid.LONG)
         setLoading(false)
       })
       .catch(error => {
         setLoading(false)
-        ToastAndroid.show('Login failed', ToastAndroid.SHORT)
-        console.error('Login error:', error)
+        ToastAndroid.show('Login failed', ToastAndroid.LONG)
+        // console.error('Login error:', error)
       })
   }
 

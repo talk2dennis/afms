@@ -56,7 +56,7 @@ export default function RegisterPage () {
       !selectedLga ||
       !gsm
     ) {
-      ToastAndroid.show('Please all fields are required', ToastAndroid.SHORT)
+      ToastAndroid.show('Please all fields are required', ToastAndroid.LONG)
       return
     }
     // check password for match
@@ -80,12 +80,15 @@ export default function RegisterPage () {
       .then(response => {
         console.log('Registration successful:', response.data)
         setLoading(false)
-        ToastAndroid.show('Registration successful', ToastAndroid.SHORT)
+        ToastAndroid.show(
+          'Registration successful, Proceed to login',
+          ToastAndroid.LONG
+        )
         router.replace('/signin')
       })
       .catch(error => {
         setLoading(false)
-        ToastAndroid.show('Registration failed', ToastAndroid.SHORT)
+        ToastAndroid.show('Registration failed', ToastAndroid.LONG)
         console.error('Registration error:', error)
       })
   }
