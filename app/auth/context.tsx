@@ -101,8 +101,6 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
         signIn: (user: User, token: string) => {
           setLoading(true)
           setUserData(user)
-          // log the user data and token for debugging
-          console.log('userdata', user)
 
           setSession(token)
           setLoading(false)
@@ -113,6 +111,7 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
           // delay for 2 seconds to simulate sign out process
           setTimeout(() => {
             setSession(null)
+            setUserData(null)
             setLoading(false)
           }, 2000)
         },
