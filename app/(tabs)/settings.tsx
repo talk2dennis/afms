@@ -27,7 +27,7 @@ export default function SettingsPage () {
     state: userData?.state || '',
     lga: userData?.lga || '',
     bio: '',
-    location: userData?.location || { latitude: '', longitude: '' }
+    location: userData?.location || { latitude: '--', longitude: '--' }
   })
 
   const [notifications, setNotifications] = useState({
@@ -114,8 +114,7 @@ export default function SettingsPage () {
           placeholder='Local Government'
           editable={false}
         />
-        ;
-        <Text>
+        <Text style={styles.input}>
           Location: {user.location.latitude}, {user.location.longitude}
         </Text>
       </SectionCard>

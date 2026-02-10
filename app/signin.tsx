@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import createAxiosClient from './api/axiosClient'
+import LoadingComponent from './components/loading'
 import {
   View,
   Text,
@@ -41,19 +43,24 @@ export default function LoginPage () {
       setLoading(false)
       return
     }
-    // check if user exists
-    const user = users.find(u => u.email === email.toLowerCase())
-    if (!user) {
-      ToastAndroid.show('User not found', ToastAndroid.SHORT)
-      setLoading(false)
-      return
-    }
-    signIn({ ...user, role: user.role as 'admin' | 'user' | undefined })
-    setLoading(false)
+    // call login api
+    const client = createAxiosClient(null)
+    client
+      .post('auth/login', { email, password })
+      .then(res => {
+        const user = res.data
+        signIn({ ...user, role: user.role as 'admin' | 'user' | undefined })
+        setLoading(false)
+      })
+      .catch(error => {
+        setLoading(false)
+        ToastAndroid.show('Login failed', ToastAndroid.SHORT)
+        console.error('Login error:', error)
+      })
   }
 
   if (loading) {
-    return <Loading />
+    return <LoadingComponent />
   }
   return (
     <KeyboardAvoidingView

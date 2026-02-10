@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import LoadingComponent from './components/loading'
+import createAxiosClient from './api/axiosClient'
 import {
   View,
   ScrollView,
@@ -11,13 +13,14 @@ import {
   Image,
   Platform
 } from 'react-native'
-import { Link } from 'expo-router'
+import { Link, useRouter } from 'expo-router'
 import colors from '../assets/colors'
 import { Picker } from '@react-native-picker/picker'
 import { Ionicons } from '@expo/vector-icons'
 import statesLGAs from './data/ng_st_lga'
 
-export default function RegisterPage ({ navigation }: any) {
+export default function RegisterPage () {
+  const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -44,7 +47,15 @@ export default function RegisterPage ({ navigation }: any) {
 
   const handleRegister = () => {
     // check that all fields are filled
-    if (!name || !email || !password) {
+    console.log('registering user')
+    if (
+      !name ||
+      !email ||
+      !confirmPassword ||
+      !selectedState ||
+      !selectedLga ||
+      !gsm
+    ) {
       ToastAndroid.show('Please all fields are required', ToastAndroid.SHORT)
       return
     }
@@ -54,8 +65,34 @@ export default function RegisterPage ({ navigation }: any) {
       ToastAndroid.show('Passwords do not match', ToastAndroid.SHORT)
       return
     }
-    // handle registration logic
-    console.log('Register:', name, email, password)
+    // submit form
+    setLoading(true)
+    const client = createAxiosClient(null)
+    client
+      .post('auth/register', {
+        name,
+        email,
+        password,
+        state: selectedState,
+        lga: selectedLga,
+        phone: gsm
+      })
+      .then(response => {
+        console.log('Registration successful:', response.data)
+        setLoading(false)
+        ToastAndroid.show('Registration successful', ToastAndroid.SHORT)
+        router.replace('/signin')
+      })
+      .catch(error => {
+        setLoading(false)
+        ToastAndroid.show('Registration failed', ToastAndroid.SHORT)
+        console.error('Registration error:', error)
+      })
+  }
+
+  // if loading show loading indicator
+  if (loading) {
+    return <LoadingComponent />
   }
 
   return (
