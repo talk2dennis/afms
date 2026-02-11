@@ -1,62 +1,143 @@
-import React from "react";
-import { View, StyleSheet, ActivityIndicator, Animated, Dimensions } from "react-native";
-import colors from "../../assets/colors";
+import React, { useEffect, useRef } from 'react'
+import {
+  View,
+  StyleSheet,
+  Text,
+  ActivityIndicator,
+  Animated,
+  Dimensions,
+  ViewStyle,
+  StyleProp
+} from 'react-native'
+import colors from '../../assets/colors'
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
+const { width } = Dimensions.get('window')
 
-export default function LoadingComponent() {
+type SkeletonProps = {
+  style?: StyleProp<ViewStyle>
+  translateX: Animated.Value
+}
+
+const Skeleton = ({ style, translateX }: SkeletonProps) => (
+  <View style={[styles.skeleton, style]}>
+    <Animated.View
+      style={[
+        styles.shimmer,
+        {
+          transform: [{ translateX }]
+        }
+      ]}
+    />
+  </View>
+)
+
+export default function LoadingComponent () {
+  const translateX = useRef(new Animated.Value(-width)).current
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(translateX, {
+        toValue: width,
+        duration: 1200,
+        useNativeDriver: true
+      })
+    )
+
+    animation.start()
+
+    return () => animation.stop()
+  }, [])
+
   return (
     <View style={styles.container}>
-      {/* Spinner */}
-      {/* <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 32 }} /> */}
-
-      {/* Page Skeleton */}
       <View style={styles.skeletonContainer}>
-        {/* Title */}
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 72, marginBottom: 16 }]} />
-        {/* Subtitle */}
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 20, marginBottom: 32 }]} />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 72, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 50, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 50, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 50, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 50, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 72, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 50, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 70, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 40, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 70, marginBottom: 16 }}
+        />
+        <Skeleton
+          translateX={translateX}
+          style={{ height: 40, marginBottom: 16 }}
+        />
+      </View>
 
-        {/* Input fields */}
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 10, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 50, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 60, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 70, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 100, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 50, marginBottom: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 60, marginBottom: 16 }]} />
-
-        {/* Button */}
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 50, borderRadius: 12, marginTop: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 50, borderRadius: 12, marginTop: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 50, borderRadius: 12, marginTop: 16 }]} />
-        <Animated.View style={[styles.skeleton, { width: "90%", height: 50, borderRadius: 12, marginTop: 16 }]} />
-        {/* Footer */}
-        <View style={styles.footer}>
-          <Animated.View style={[styles.skeleton, { width: 100, height: 16 }]} />
-          <Animated.View style={[styles.skeleton, { width: 60, height: 16, marginLeft: 8 }]} />
-        </View>
+      <View style={styles.overlay}>
+        <ActivityIndicator size='large' color={colors.primary} />
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.white,
-    paddingHorizontal: 14
+    backgroundColor: colors.white
   },
   skeletonContainer: {
-    width: "100%",
-    alignItems: "center"
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 20
   },
   skeleton: {
+    width: '100%',
     backgroundColor: colors.accent,
-    borderRadius: 12
+    borderRadius: 12,
+    overflow: 'hidden'
   },
-  footer: {
-    flexDirection: "row",
-    marginTop: 24
+  shimmer: {
+    width: width * 0.6,
+    height: '100%',
+    backgroundColor: 'rgba(255,255,255,0.1)'
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.primary,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8
   }
-});
+})

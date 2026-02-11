@@ -113,6 +113,7 @@ export default function LoginPage () {
           <TextInput
             style={styles.input}
             placeholder='Password'
+            autoCapitalize='none'
             placeholderTextColor={colors.gray}
             secureTextEntry
             value={password}

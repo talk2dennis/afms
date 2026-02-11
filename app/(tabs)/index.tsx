@@ -1,3 +1,5 @@
+import React, { useEffect, useState } from 'react'
+import createAxiosClient from '../api/axiosClient'
 import {
   Text,
   View,
@@ -6,160 +8,176 @@ import {
   ScrollView
 } from 'react-native'
 import * as Location from 'expo-location'
-import { useEffect, useState } from 'react'
 import { useSession } from '../auth/context'
 import { fetchWeatherApi } from 'openmeteo'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import LoadingComponent from '../components/loading'
 
-const getRainStyle = (rain: number) => {
-  if (rain >= 10) {
-    return { bg: '#e6f2ff', color: '#1e90ff' } // heavy rain
+/* ----------------------------- Types ----------------------------- */
+
+type WeatherData = {
+  current: {
+    time: Date
+    showers: number
+    rain: number
   }
-  if (rain > 0) {
-    return { bg: '#fff7e6', color: '#f4a100' } // light rain
+  daily: {
+    time: Date[]
+    rain_sum: number[]
+    showers_sum: number[]
+    snowfall_sum: number[]
   }
-  return { bg: '#f5f5f5', color: '#999' } // no rain
 }
 
-export default function HomePage () {
-  const [weatherData, setWeatherData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [location, setLocation] = useState<Location.LocationObject | null>(null)
+/* -------------------------- Helper Style -------------------------- */
 
+const getRainStyle = (rain: number) => {
+  if (rain >= 10) {
+    return { bg: '#e6f2ff', color: '#1e90ff' }
+  }
+  if (rain > 0) {
+    return { bg: '#fff7e6', color: '#f4a100' }
+  }
+  return { bg: '#f5f5f5', color: '#999' }
+}
+
+/* -------------------------- update user location -------------------------- */
+const updateUserLocation = async (latitude: number, longitude: number) => {
+  const axiosClient = createAxiosClient(null)
+
+  try {
+    await axiosClient.put('me', {
+      location: {
+        latitude,
+        longitude
+      }
+    })
+  } catch (error) {
+    console.error('Failed to update user location:', error)
+  }
+}
+
+const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast'
+
+/* ----------------------------- Component ----------------------------- */
+
+export default function HomePage () {
   const { signOut, userData } = useSession()
 
-  if (!userData) {
-    signOut()
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  /* ------------------------- Weather Loader ------------------------- */
+
+  const loadWeather = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      if (!userData) {
+        signOut()
+        return
+      }
+
+      let latitude = userData.location?.latitude
+      let longitude = userData.location?.longitude
+
+      // If user has no saved location → get device location
+      if (
+        latitude === null ||
+        latitude === undefined ||
+        longitude === null ||
+        longitude === undefined
+      ) {
+        console.log('No saved location, requesting device location...')
+        const { status } = await Location.requestForegroundPermissionsAsync()
+
+        if (status !== 'granted') {
+          throw new Error('Location permission denied')
+        }
+
+        const deviceLocation = await Location.getCurrentPositionAsync({})
+
+        latitude = deviceLocation.coords.latitude
+        longitude = deviceLocation.coords.longitude
+      }
+
+      const params = {
+        latitude,
+        longitude,
+        daily: ['rain_sum', 'showers_sum', 'snowfall_sum'],
+        current: ['showers', 'rain'],
+        timezone: 'auto',
+        forecast_days: 7
+      }
+
+      const responses = await fetchWeatherApi(WEATHER_URL, params)
+      const response = responses[0]
+
+      const utcOffsetSeconds = response.utcOffsetSeconds()
+      const current = response.current()!
+      const daily = response.daily()!
+
+      const parsedData: WeatherData = {
+        current: {
+          time: new Date((Number(current.time()) + utcOffsetSeconds) * 1000),
+          showers: current.variables(0)!.value(),
+          rain: current.variables(1)!.value()
+        },
+        daily: {
+          time: Array.from(
+            {
+              length:
+                (Number(daily.timeEnd()) - Number(daily.time())) /
+                daily.interval()
+            },
+            (_, i) =>
+              new Date(
+                (Number(daily.time()) +
+                  i * daily.interval() +
+                  utcOffsetSeconds) *
+                  1000
+              )
+          ),
+          rain_sum: Array.from(daily.variables(0)!.valuesArray()!),
+          showers_sum: Array.from(daily.variables(1)!.valuesArray()!),
+          snowfall_sum: Array.from(daily.variables(2)!.valuesArray()!)
+        }
+      }
+
+      setWeatherData(parsedData)
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch weather.')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const params = {
-    latitude: 5.89,
-    longitude: 5.68,
-    daily: ['rain_sum', 'showers_sum', 'snowfall_sum'],
-    current: ['showers', 'rain'],
-    timezone: 'Africa/Cairo',
-    past_days: 7,
-    forecast_days: 16
-  }
-  const url = 'https://api.open-meteo.com/v1/forecast'
+  /* ----------------------------- Effects ----------------------------- */
 
   useEffect(() => {
-    // get user location
-    const getLocation = async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync()
-        if (status !== 'granted') {
-          setError('Permission to access location was denied')
-          setLoading(false)
-          return
-        }
-
-        let loc = await Location.getCurrentPositionAsync({})
-        setLocation(loc)
-        // console.log('Location obtained:', loc)
-      } catch (err) {
-        setError('Failed to get location')
-        // console.error(err)
-        setLoading(false)
-      }
-    }
-
-    getLocation()
-
-    // fetch weather data
-    const fetchWeather = async () => {
-      try {
-        const params = {
-          latitude: 52.52,
-          longitude: 13.41,
-          daily: ['rain_sum', 'showers_sum', 'snowfall_sum'],
-          current: ['showers', 'rain'],
-          timezone: 'Africa/Cairo',
-          past_days: 0,
-          forecast_days: 7
-        }
-
-        const url = 'https://api.open-meteo.com/v1/forecast'
-        const responses = await fetchWeatherApi(url, params)
-        const response = responses[0]
-
-        const utcOffsetSeconds = response.utcOffsetSeconds()
-        const current = response.current()!
-        const daily = response.daily()!
-
-        const data = {
-          current: {
-            time: new Date((Number(current.time()) + utcOffsetSeconds) * 1000),
-            showers: current.variables(0)!.value(),
-            rain: current.variables(1)!.value()
-          },
-
-          daily: {
-            time: Array.from(
-              {
-                length:
-                  (Number(daily.timeEnd()) - Number(daily.time())) /
-                  daily.interval()
-              },
-              (_, i) =>
-                new Date(
-                  (Number(daily.time()) +
-                    i * daily.interval() +
-                    utcOffsetSeconds) *
-                    1000
-                )
-            ),
-            rain_sum: daily.variables(0)!.valuesArray()!,
-            showers_sum: daily.variables(1)!.valuesArray()!,
-            snowfall_sum: daily.variables(2)!.valuesArray()!
-          }
-        }
-        setWeatherData(data)
-      } catch (err) {
-        setError('Failed to fetch weather data.')
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (location) {
-      // update params with actual location
-      params.latitude = location.coords.latitude
-      params.longitude = location.coords.longitude
-      fetchWeather()
-      // update userdata location
-      if (userData) {
-        userData.location = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude
-        }
-      }
-    }
+    loadWeather()
   }, [])
 
-  if (loading) {
-    return <LoadingComponent />
-  }
+  /* ----------------------------- UI States ----------------------------- */
 
-  if (error) {
+  if (loading) return <LoadingComponent />
+
+  if (error)
     return (
       <View style={styles.center}>
         <Ionicons name='warning-outline' size={40} color='red' />
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          onPress={() => {
-            fetchWeatherApi(url, params)
-            setLoading(true)
-          }}
-        >
+        <TouchableOpacity onPress={loadWeather}>
           <Text style={{ color: 'blue', marginTop: 10 }}>Retry</Text>
         </TouchableOpacity>
       </View>
     )
-  }
+
+  if (!weatherData) return null
+
+  /* ----------------------------- UI ----------------------------- */
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -183,6 +201,7 @@ export default function HomePage () {
             Rain: {weatherData.current.rain} mm
           </Text>
         </View>
+
         <View style={styles.row}>
           <MaterialCommunityIcons
             name='weather-pouring'
@@ -198,11 +217,12 @@ export default function HomePage () {
           {weatherData.current.time.toLocaleString()}
         </Text>
       </View>
-      {/* Daily Forecast */}
+
+      {/* 7-Day Forecast */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>7-Day Forecast</Text>
 
-        {weatherData.daily.time.map((date: Date, index: number) => {
+        {weatherData.daily.time.map((date, index) => {
           const rain = weatherData.daily.rain_sum[index] || 0
           const rainStyle = getRainStyle(rain)
 
@@ -246,6 +266,8 @@ export default function HomePage () {
   )
 }
 
+/* ----------------------------- Styles ----------------------------- */
+
 const styles = StyleSheet.create({
   container: {
     padding: 16,
@@ -255,10 +277,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16
   },
   errorText: {
     color: 'red',
@@ -300,7 +318,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     fontSize: 14
   },
-
   cardText: {
     fontSize: 16,
     marginLeft: 6
@@ -313,8 +330,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 4,
-    padding: 4
+    marginVertical: 4
   },
   dateText: {
     fontWeight: '600'
