@@ -91,18 +91,6 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(false)
   const [userData, setUserData] = useState<User | null>(null)
 
-  console.log(
-    'SessionProvider rendered with session:',
-    session,
-    'and userData:',
-    userData
-  )
-
-  // if user is null but session exists, for now clear the session
-  if (!userData && session) {
-    setSession(null)
-  }
-
   return (
     <AuthContext.Provider
       value={{

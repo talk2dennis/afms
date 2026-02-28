@@ -35,11 +35,9 @@ export default function LoginPage () {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { signIn } = useSession()
-  const [[isSessionLoading, sessionToken]] = useStorageState('session-token')
-  // create axiosClient
-  console.log('Session token in LoginPage:', sessionToken)
-  const client = createAxiosClient(sessionToken)
+  const { signIn, session } = useSession()
+
+  const client = createAxiosClient(session || null)
 
   const guest = users.find(u => u.email === 'guest@example.com')
   // handle guest login
@@ -54,7 +52,7 @@ export default function LoginPage () {
 
   // if session exists, login user
   useEffect(() => {
-    if (!isSessionLoading && sessionToken) {
+    if (session) {
       setLoading(true)
       client
         .get('auth/me')
@@ -67,7 +65,7 @@ export default function LoginPage () {
           setLoading(false)
         })
     }
-  }, [sessionToken, isSessionLoading])
+  }, [session])
 
   const handleLogin = () => {
     // handle login logic

@@ -1,202 +1,304 @@
-import { Modal, View, Image, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
-import * as ImagePicker from "expo-image-picker";
-import { Picker } from "@react-native-picker/picker";
-import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
-import statesLGAs from "../data/ng_st_lga";
+import {
+  Modal,
+  View,
+  Image,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ToastAndroid,
+  ScrollView
+} from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { Picker } from '@react-native-picker/picker'
+import { Ionicons } from '@expo/vector-icons'
+import { useState } from 'react'
+import statesLGAs from '../data/ng_st_lga'
+import { useSession } from '../auth/context'
+import createAxiosClient from '../api/axiosClient'
 
 type Props = {
-  visible: boolean;
-  onClose: () => void;
-  addReport: (data:{title: string; description: string; state: string; lga: string; img: string;}) => void;
-};
+  visible: boolean
+  onClose: () => void
+  addReport: (data: {
+    title: string
+    description: string
+    state: string
+    lga: string
+    img: string
+    severity: string
+  }) => void
+}
 
-export default function AddReportModal({ visible, onClose, addReport }: Props) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedLga, setSelectedLga] = useState("");
-  const [image, setImage] = useState<string | null>(null);
+export default function AddReportModal ({ visible, onClose }: Props) {
+  const { userData } = useSession()
+  const client = createAxiosClient(userData?.token || null)
+  const [loading, setLoading] = useState(false)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [selectedState, setSelectedState] = useState('')
+  const [selectedLga, setSelectedLga] = useState('')
+  const [severity, setSeverity] = useState<'Low' | 'Moderate' | 'High'>(
+    'Moderate'
+  )
+  const [images, setImages] = useState<
+    {
+      uri: string
+      name: string
+      type: string
+    }[]
+  >([])
 
-
-  const lgaOptions =
-    statesLGAs.find(s => s.state === selectedState)?.lgas || [];
+  const lgaOptions = statesLGAs.find(s => s.state === selectedState)?.lgas || []
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.7,
-    });
+      allowsMultipleSelection: true,
+      quality: 0.7
+    })
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      const selectedImages = result.assets.map((asset, index) => ({
+        uri: asset.uri,
+        name: asset.fileName || `report-${Date.now()}-${index}.jpg`,
+        type: asset.mimeType || 'image/jpeg'
+      }))
+      setImages(prev => [...prev, ...selectedImages])
     }
-  };
+  }
 
   const handleSubmit = () => {
-    if (!title || !description || !selectedState || !selectedLga) return;
-
-    addReport({ title, description, state: selectedState, lga: selectedLga, img: image || "" });
+    if (!title || !description || !selectedState || !selectedLga) {
+      ToastAndroid.show('Please fill all required fields', ToastAndroid.SHORT)
+      return
+    }
+    setLoading(true)
+    const form = new FormData()
+    form.append('title', title)
+    form.append('description', description)
+    form.append('state', selectedState)
+    form.append('lga', selectedLga)
+    form.append('severity', severity)
+    images.forEach(image => form.append('files', image as any))
+    // add report
+    client
+      .post('reports', form)
+      .then(res => {
+        console.log('Report submitted successfully:', res.data)
+        ToastAndroid.show('Report submitted successfully', ToastAndroid.SHORT)
+        setLoading(false)
+        onClose()
+      })
+      .catch(error => {
+        console.error('Report submission failed:', error)
+        ToastAndroid.show('Report submission failed', ToastAndroid.SHORT)
+        setLoading(false)
+      })
 
     // reset
-    setTitle("");
-    setDescription("");
-    setSelectedState("");
-    setSelectedLga("");
-    setImage(null);
-    onClose();
-  };
+    setTitle('')
+    setDescription('')
+    setSelectedState('')
+    setSelectedLga('')
+    setImages([])
+    onClose()
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Submitting report...</Text>
+      </View>
+    )
+  }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerText}>New Flood Report</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} />
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
+      <Modal visible={visible} animationType='slide' transparent>
+        <View style={styles.overlay}>
+          <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.headerText}>New Flood Report</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Ionicons name='close' size={24} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Image Picker */}
+            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+              <Ionicons name='camera-outline' size={26} color='#555' />
+              <Text style={{ marginTop: 6 }}>
+                {images.length > 0
+                  ? `Add More Images (${images.length} selected)`
+                  : 'Add Images'}
+              </Text>
+            </TouchableOpacity>
+
+            {images.length > 0 && (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {images.map((image, index) => (
+                  <Image
+                    key={`${image.uri}-${index}`}
+                    source={{ uri: image.uri }}
+                    style={styles.imageThumb}
+                  />
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Inputs */}
+            <TextInput
+              placeholder='Title'
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+            />
+
+            <TextInput
+              placeholder='Description'
+              style={[styles.input, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
+
+            {/* Severity Picker */}
+            <View style={styles.pickerWrapper}>
+              <Picker selectedValue={severity} onValueChange={setSeverity}>
+                <Picker.Item label='Low' value='Low' />
+                <Picker.Item label='Moderate' value='Moderate' />
+                <Picker.Item label='High' value='High' />
+              </Picker>
+            </View>
+
+            {/* State Picker */}
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={selectedState}
+                onValueChange={value => {
+                  setSelectedState(value)
+                  setSelectedLga('')
+                }}
+              >
+                <Picker.Item label='Select State' value='' />
+                {statesLGAs.map(s => (
+                  <Picker.Item key={s.state} label={s.state} value={s.state} />
+                ))}
+              </Picker>
+            </View>
+
+            {/* LGA Picker */}
+            <View style={styles.pickerWrapper}>
+              <Picker
+                enabled={!!selectedState}
+                selectedValue={selectedLga}
+                onValueChange={setSelectedLga}
+              >
+                <Picker.Item label='Select LGA' value='' />
+                {lgaOptions.map(lga => (
+                  <Picker.Item key={lga} label={lga} value={lga} />
+                ))}
+              </Picker>
+            </View>
+
+            {/* Submit */}
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
+              <Text style={styles.submitText}>Submit Report</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Image Picker */}
-          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.imagePreview} />
-            ) : (
-              <>
-                <Ionicons name="camera-outline" size={26} color="#555" />
-                <Text style={{ marginTop: 6 }}>Add Image</Text>
-              </>
-            )}
-          </TouchableOpacity>
-
-          {/* Inputs */}
-          <TextInput
-            placeholder="Title"
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-          />
-
-          <TextInput
-            placeholder="Description"
-            style={[styles.input, styles.textArea]}
-            value={description}
-            onChangeText={setDescription}
-            multiline
-          />
-
-          {/* State Picker */}
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={selectedState}
-              onValueChange={(value) => {
-                setSelectedState(value);
-                setSelectedLga("");
-              }}
-            >
-              <Picker.Item label="Select State" value="" />
-              {statesLGAs.map((s) => (
-                <Picker.Item key={s.alias} label={s.state} value={s.state} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* LGA Picker */}
-          <View style={styles.pickerWrapper}>
-            <Picker
-              enabled={!!selectedState}
-              selectedValue={selectedLga}
-              onValueChange={setSelectedLga}
-            >
-              <Picker.Item label="Select LGA" value="" />
-              {lgaOptions.map((lga) => (
-                <Picker.Item key={lga} label={lga} value={lga} />
-              ))}
-            </Picker>
-          </View>
-
-          {/* Submit */}
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-            <Text style={styles.submitText}>Submit Report</Text>
-          </TouchableOpacity>
         </View>
-      </View>
-    </Modal>
+      </Modal>
     </KeyboardAvoidingView>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "flex-end",
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end'
   },
 
   container: {
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    padding: 20,
+    padding: 20
   },
 
   header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16
   },
 
   headerText: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: '700'
   },
 
   input: {
-    backgroundColor: "#f2f4f7",
+    backgroundColor: '#f2f4f7',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
+    marginBottom: 12
   },
 
   textArea: {
     height: 100,
-    textAlignVertical: "top",
+    textAlignVertical: 'top'
   },
 
   submitBtn: {
-    backgroundColor: "#1e90ff",
+    backgroundColor: '#1e90ff',
     paddingVertical: 14,
     borderRadius: 24,
-    alignItems: "center",
-    marginTop: 10,
+    alignItems: 'center',
+    marginTop: 10
   },
 
   submitText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15
   },
   imagePicker: {
-    backgroundColor: "#f2f4f7",
+    backgroundColor: '#f2f4f7',
     height: 150,
     borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 12
   },
 
   imagePreview: {
-    height: "100%",
-    width: "100%",
+    height: '100%',
+    width: '100%',
     borderRadius: 12,
-    marginVertical: 10,
+    marginVertical: 10
+  },
+  imageThumb: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 8,
+    marginBottom: 10
   },
   pickerWrapper: {
-    backgroundColor: "#f2f4f7",
+    backgroundColor: '#f2f4f7',
     borderRadius: 12,
-    marginBottom: 12,
+    marginBottom: 12
   },
-});
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  }
+})
