@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Alert
+  Alert,
+  ToastAndroid
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
@@ -14,12 +15,15 @@ import * as ImagePicker from 'expo-image-picker'
 import SectionCard from '../components/sectionCard'
 import ToggleRow from '../components/toggleRow'
 import { useSession } from '../auth/context'
+import * as Location from 'expo-location'
+import createAxiosClient from '../api/axiosClient'
 
 export default function SettingsPage () {
   const { userData, signOut } = useSession()
-
+  const client = createAxiosClient(userData?.token || null)
   const [profileImage, setProfileImage] = useState<string | null>(null)
 
+  const [loading, setLoading] = useState(false)
   const [user, setUser] = useState({
     name: userData?.name || '',
     email: userData?.email || '',
@@ -27,7 +31,7 @@ export default function SettingsPage () {
     state: userData?.state || '',
     lga: userData?.lga || '',
     bio: '',
-    location: userData?.location || { latitude: '--', longitude: '--' }
+    location: userData?.location || [0, 0]
   })
 
   const [notifications, setNotifications] = useState({
@@ -59,6 +63,61 @@ export default function SettingsPage () {
           onPress: () => signOut()
         }
       ]
+    )
+  }
+
+  // get user location on component mount
+  const handleGetLocation = async () => {
+    setLoading(true)
+    let latitude: number | undefined
+    let longitude: number | undefined
+
+    const { status } = await Location.requestForegroundPermissionsAsync()
+
+    if (status !== 'granted') {
+      console.log('Location permission denied')
+      ToastAndroid.show('Location permission denied', ToastAndroid.LONG)
+      setLoading(false)
+      return
+    }
+
+    const deviceLocation = await Location.getCurrentPositionAsync({})
+    latitude = deviceLocation.coords.latitude
+    longitude = deviceLocation.coords.longitude
+
+    setUser({ ...user, location: [latitude, longitude] })
+    ToastAndroid.show(
+      'Location updated locally. Remember to save changes.',
+      ToastAndroid.LONG
+    )
+    setLoading(false)
+  }
+
+  // update user data on server when userData changes
+  const updateUserData = () => {
+    if (!user.location[0] || !user.location[1]) {
+      console.log('No location data to update')
+      return
+    }
+
+    client
+      .put('auth/me', user)
+      .then(res => {
+        console.log('User data update response:', res.data)
+        ToastAndroid.show('User data updated successfully', ToastAndroid.LONG)
+      })
+      .catch(error => {
+        ToastAndroid.show('Failed to update user data', ToastAndroid.LONG)
+        console.log('User data update error:', error)
+      })
+  }
+
+  // if loading show loading indicator
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading...</Text>
+      </View>
     )
   }
 
@@ -115,8 +174,16 @@ export default function SettingsPage () {
           editable={false}
         />
         <Text style={styles.input}>
-          Location: {user.location.latitude}, {user.location.longitude}
+          Location: {user.location[0]}, {user.location[1]}
+          {/* button to update location */}
+          <TouchableOpacity onPress={handleGetLocation}>
+            <Text style={styles.locBtn}>Update Location</Text>
+          </TouchableOpacity>
         </Text>
+        <TouchableOpacity style={styles.actionBtn} onPress={updateUserData}>
+          <Ionicons name='save-outline' size={18} color={'white'} />
+          <Text style={styles.actionText}>Save Changes</Text>
+        </TouchableOpacity>
       </SectionCard>
       {/* CHANGE PASSWORD */}
       <SectionCard title='Change Password'>
@@ -135,6 +202,10 @@ export default function SettingsPage () {
           placeholder='Confirm New Password'
           secureTextEntry
         />
+        <TouchableOpacity style={styles.actionBtn} onPress={updateUserData}>
+          <Ionicons name='save-outline' size={18} color={'white'} />
+          <Text style={styles.actionText}>Change Password</Text>
+        </TouchableOpacity>
       </SectionCard>
       {/* OPTIONAL INFO */}
       <SectionCard title='Additional Information (Optional)'>
@@ -145,6 +216,10 @@ export default function SettingsPage () {
           value={user.bio}
           onChangeText={val => setUser({ ...user, bio: val })}
         />
+        <TouchableOpacity style={styles.actionBtn} onPress={updateUserData}>
+          <Ionicons name='save-outline' size={18} color={'white'} />
+          <Text style={styles.actionText}>Update Bio</Text>
+        </TouchableOpacity>
       </SectionCard>
 
       {/* NOTIFICATIONS */}
@@ -164,23 +239,20 @@ export default function SettingsPage () {
           value={notifications.sms}
           onChange={v => setNotifications({ ...notifications, sms: v })}
         />
+        <TouchableOpacity style={styles.actionBtn} onPress={updateUserData}>
+          <Ionicons name='save-outline' size={18} color={'white'} />
+          <Text style={styles.actionText}>Save Preferences</Text>
+        </TouchableOpacity>
       </SectionCard>
 
       {/* ACCOUNT ACTIONS */}
       <SectionCard title='Account'>
-        <TouchableOpacity style={styles.actionBtn}>
-          <Ionicons name='create-outline' size={18} />
-          <Text style={styles.actionText}>Edit Profile</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
-          style={styles.actionBtn}
+          style={styles.actionBtnDanger}
           onPress={handleDeleteAccount}
         >
-          <Ionicons name='trash-outline' size={18} color='#e74c3c' />
-          <Text style={[styles.actionText, { color: '#e74c3c' }]}>
-            Delete Account
-          </Text>
+          <Ionicons name='trash-outline' size={18} color='#fff' />
+          <Text style={[styles.actionText]}>Delete Account</Text>
         </TouchableOpacity>
       </SectionCard>
     </ScrollView>
@@ -238,10 +310,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    gap: 10
+    gap: 10,
+    backgroundColor: '#1e90ff',
+    color: '#fff',
+    paddingHorizontal: 12,
+    borderRadius: 6
+  },
+
+  actionBtnDanger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 10,
+    backgroundColor: '#e74c3c',
+    color: '#fff',
+    paddingHorizontal: 12,
+    borderRadius: 6
+  },
+
+  locBtn: {
+    color: 'white',
+    marginLeft: 10,
+    fontSize: 14,
+    backgroundColor: '#1e90ff',
+    padding: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4
   },
 
   actionText: {
-    fontSize: 14
+    fontSize: 14,
+    color: 'white',
+    fontWeight: 'bold'
   }
 })

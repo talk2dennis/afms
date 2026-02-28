@@ -142,6 +142,7 @@ export default function RegisterPage () {
             style={styles.input}
             placeholder='Email'
             placeholderTextColor={colors.gray}
+            autoCapitalize='none'
             keyboardType='email-address'
             value={email}
             onChangeText={setEmail}

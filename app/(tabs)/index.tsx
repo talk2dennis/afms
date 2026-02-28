@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import createAxiosClient from '../api/axiosClient'
 import {
   Text,
   View,
   TouchableOpacity,
   StyleSheet,
-  ScrollView
+  ScrollView,
+  ToastAndroid
 } from 'react-native'
 import * as Location from 'expo-location'
 import { useSession } from '../auth/context'
@@ -43,18 +44,19 @@ const getRainStyle = (rain: number) => {
 
 /* -------------------------- update user location -------------------------- */
 const updateUserLocation = async (latitude: number, longitude: number) => {
-  const axiosClient = createAxiosClient(null)
+  const client = createAxiosClient(null)
 
-  try {
-    await axiosClient.put('me', {
-      location: {
-        latitude,
-        longitude
-      }
+  client
+    .put('auth/me', { location: [latitude, longitude] })
+    .then(res => {
+      console.log('location update response:', res.data)
+      ToastAndroid.show('Location updated successfully', ToastAndroid.LONG)
+      return res.data
     })
-  } catch (error) {
-    console.error('Failed to update user location:', error)
-  }
+    .catch(error => {
+      ToastAndroid.show('Location update failed', ToastAndroid.LONG)
+      console.log('Location update error:', error)
+    })
 }
 
 const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast'
@@ -80,8 +82,8 @@ export default function HomePage () {
         return
       }
 
-      let latitude = userData.location?.latitude
-      let longitude = userData.location?.longitude
+      let latitude = userData.location?.[0]
+      let longitude = userData.location?.[1]
 
       // If user has no saved location → get device location
       if (
@@ -101,6 +103,12 @@ export default function HomePage () {
 
         latitude = deviceLocation.coords.latitude
         longitude = deviceLocation.coords.longitude
+        // Update user location on server for future use
+        console.log(
+          `user location obtained: lat=${latitude}, lon=${longitude}, updating server...`
+        )
+        const res = await updateUserLocation(latitude, longitude)
+        console.log('User location updated on server:', res)
       }
 
       const params = {

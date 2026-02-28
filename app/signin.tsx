@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import createAxiosClient from './api/axiosClient'
 import LoadingComponent from './components/loading'
 import {
@@ -18,15 +18,28 @@ import colors from '../assets/colors'
 import { useSession, users } from './auth/context'
 import { useStorageState } from './auth/useStorageState'
 
+// login user if session exists
+// const sessionLogin = () => {
+//   // check if session token exists in storage
+//   const [session] = useStorageState('session-token')
+//   const { signIn } = useSession()
+//   const client = createAxiosClient(null)
+//   console.log('checking for existing session token...')
+//   if (session) {
+//     console.log(`session token found: ${session}, logging in user...`)
+//   }
+// }
+
 export default function LoginPage () {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   const { signIn } = useSession()
-  const [session] = useStorageState('session-token')
+  const [[isSessionLoading, sessionToken]] = useStorageState('session-token')
   // create axiosClient
-  const client = createAxiosClient(null)
+  console.log('Session token in LoginPage:', sessionToken)
+  const client = createAxiosClient(sessionToken)
 
   const guest = users.find(u => u.email === 'guest@example.com')
   // handle guest login
@@ -40,13 +53,21 @@ export default function LoginPage () {
   }
 
   // if session exists, login user
-  // const sessionLogin = () = {
-  //   client.get('auth/login')
-  //     .then(res => {
-  //       const user = res.data.user
-  //       signIn(user, res.data.token)
-  //     })
-  // }
+  useEffect(() => {
+    if (!isSessionLoading && sessionToken) {
+      setLoading(true)
+      client
+        .get('auth/me')
+        .then(res => {
+          console.log('Session login successful:', res.data)
+          signIn(res.data, res.data.token)
+        })
+        .catch(error => {
+          console.error('Session login failed:', error)
+          setLoading(false)
+        })
+    }
+  }, [sessionToken, isSessionLoading])
 
   const handleLogin = () => {
     // handle login logic

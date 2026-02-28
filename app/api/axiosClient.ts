@@ -1,4 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
+import { useRouter } from 'expo-router'
+import { useSession } from '../auth/context'
 
 const baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api'
 // console.log('Axios Base URL:', baseURL)
@@ -7,6 +9,10 @@ const createAxiosClient = (session: string | null): AxiosInstance => {
   const client = axios.create({
     baseURL: baseURL
   })
+
+  const { signOut } = useSession()
+
+  const router = useRouter()
 
   if (session) {
     client.defaults.headers.common['Authorization'] = `Bearer ${session}`
@@ -25,7 +31,12 @@ const createAxiosClient = (session: string | null): AxiosInstance => {
     },
     error => {
       if (error.response?.status === 401) {
-        window.location.href = '/login'
+        // Unauthorized error, token might be invalid or expired
+        console.log('Unauthorized error, signing out user...', session)
+        // remove token from headers
+        delete client.defaults.headers.common['Authorization']
+        signOut()
+        router.replace('/signin')
       }
       return Promise.reject(error)
     }

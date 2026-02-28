@@ -40,8 +40,9 @@ export type User = {
   lga?: string
   state?: string
   phone?: string
-  location?: { latitude: number; longitude: number }
+  location?: [number, number] // [latitude, longitude]
   role?: 'ADMIN' | 'USER'
+  token?: string
 }
 
 export const weatherContext = {
@@ -90,6 +91,13 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
   const [loading, setLoading] = useState(false)
   const [userData, setUserData] = useState<User | null>(null)
 
+  console.log(
+    'SessionProvider rendered with session:',
+    session,
+    'and userData:',
+    userData
+  )
+
   // if user is null but session exists, for now clear the session
   if (!userData && session) {
     setSession(null)
@@ -100,7 +108,7 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
       value={{
         signIn: (user: User, token: string) => {
           setLoading(true)
-          setUserData(user)
+          setUserData({ ...user, token: token })
 
           setSession(token)
           setLoading(false)
