@@ -5,7 +5,9 @@ import {
   Image,
   FlatList,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
+  Modal,
+  Dimensions
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSession } from '../auth/context'
@@ -26,127 +28,240 @@ export default function ReportPage () {
   const { userData: user } = useSession()
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
-  const [reports, setReports] = useState(sampleReports)
+  const [refreshing, setRefreshing] = useState(false)
+  const [reports, setReports] = useState<any[]>(sampleReports as any[])
   const [updated, setUpdated] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [expandedReportIds, setExpandedReportIds] = useState<
+    Record<string, boolean>
+  >({})
+  const [viewerVisible, setViewerVisible] = useState(false)
+  const [viewerImages, setViewerImages] = useState<string[]>([])
+  const [viewerIndex, setViewerIndex] = useState(0)
+  const screenWidth = Dimensions.get('window').width
 
   const { userData } = useSession()
   const client = createAxiosClient(userData?.token || null)
 
-  // hadle adding a new report
-  const handleAddReport = (data: {
-    title: string
-    description: string
-    state: string
-    lga: string
-    img: string
-  }) => {
-    setLoading(true)
-    const newReport = {
-      ...data,
-      imageUrl: data.img || 'https://via.placeholder.com/150',
-      id: Date.now().toString(),
-      createdBy: user!.id,
-      approved: false,
-      upvotes: 0,
-      downvotes: 0,
-      votes: {}
+  const fetchReports = (isRefreshing = false) => {
+    if (isRefreshing) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
     }
-    addReport(newReport)
-    setShowModal(false)
-    setUpdated(!updated)
-    setLoading(false)
-  }
 
-  // handle voting on a report
-  const handleVote = (
-    reportId: string,
-    userId: string,
-    voteType: 'up' | 'down'
-  ) => {
-    voteReport(reportId, userId, voteType)
-    setUpdated(!updated)
-  }
+    client
+      .get('reports/my-reports')
+      .then(res => {
+        const payload = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res.data?.data)
+          ? res.data.data
+          : []
 
-  // handle deleting a report
-  const handleDelete = (reportId: string) => {
-    setLoading(true)
-    deleteReport(reportId)
-    setUpdated(!updated)
-    setLoading(false)
-  }
+        const normalizedReports = payload.map((report: any, index: number) => {
+          const createdAtRaw =
+            report?.createdAt ||
+            report?.created_at ||
+            report?.dateCreated ||
+            null
 
-  // handle approving a report
-  const handleApprove = (reportId: string) => {
-    setLoading(true)
-    approveReport(reportId)
-    setUpdated(!updated)
-    // delay to simulate network request
-    setTimeout(() => {
-      setLoading(false)
-    }, 2000)
+          return {
+            ...report,
+            id: String(report?.id ?? `report-${index}`),
+            creatorId: String(report?.createdBy ?? report?.user?._id ?? ''),
+            creatorName: report.user == user?.id ? user?.name : 'Anonymous',
+            createdAtRaw,
+            upvotes: Number(report?.upvotes ?? 0),
+            downvotes: Number(report?.downvotes ?? 0),
+            votes:
+              report?.votes && typeof report.votes === 'object'
+                ? report.votes
+                : {}
+          }
+        })
+
+        setReports(normalizedReports)
+      })
+      .catch(error => {
+        console.log('Failed to fetch reports:', error)
+      })
+      .finally(() => {
+        if (isRefreshing) {
+          setRefreshing(false)
+          return
+        }
+        setLoading(false)
+      })
   }
 
   // get updated reports if report is added/deleted/approved/voted
   useEffect(() => {
-    setLoading(true)
-    client
-      .get('reports')
-      .then(res => {
-        setReports(res.data)
-        setLoading(false)
-      })
-      .catch(error => {
-        console.log('Failed to fetch reports:', error)
-        setLoading(false)
-      })
+    fetchReports()
   }, [updated])
 
   const PAGE_SIZE = 10
+  const totalPages = Math.max(1, Math.ceil(reports.length / PAGE_SIZE))
 
   const paginated = reports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  if (reports.length === 0 && !loading) {
-    return (
-      <View style={styles.center}>
-        <Ionicons name='information-circle-outline' size={40} color='#777' />
-        <Text style={{ marginTop: 10, fontSize: 16, color: '#777' }}>
-          No reports available.
-        </Text>
-        <TouchableOpacity
-          style={{ marginTop: 20 }}
-          onPress={() => setShowModal(true)}
-        >
-          <Text style={{ color: '#1e90ff' }}>Add a Report</Text>
-        </TouchableOpacity>
-        <AddReportModal
-          visible={showModal}
-          onClose={() => setShowModal(false)}
-          addReport={handleAddReport}
-        />
-      </View>
-    )
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages)
+    }
+  }, [page, totalPages])
+
+  const toggleReportDetails = (reportId: string) => {
+    setExpandedReportIds(prev => ({
+      ...prev,
+      [reportId]: !prev[reportId]
+    }))
+  }
+
+  const getReportImages = (report: any) => {
+    const imageList = Array.isArray(report?.images)
+      ? report.images
+          .map((img: any) => {
+            if (typeof img === 'string') {
+              return img
+            }
+            return img?.url
+          })
+          .filter(Boolean)
+      : []
+
+    const fallback =
+      typeof report?.imageUrl === 'string' && report.imageUrl.trim().length > 0
+        ? [report.imageUrl]
+        : []
+
+    return [...new Set([...imageList, ...fallback])].slice(0, 3)
+  }
+
+  const openImageViewer = (images: string[], startIndex: number) => {
+    setViewerImages(images)
+    setViewerIndex(startIndex)
+    setViewerVisible(true)
+  }
+
+  const formatCreatedAt = (value: any) => {
+    if (!value) {
+      return 'Date unavailable'
+    }
+
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) {
+      return 'Date unavailable'
+    }
+
+    return parsed.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const formatRelativeTime = (value: any) => {
+    if (!value) {
+      return ''
+    }
+
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) {
+      return ''
+    }
+
+    const diffMs = Date.now() - parsed.getTime()
+    const future = diffMs < 0
+    const absDiff = Math.abs(diffMs)
+
+    const minute = 60 * 1000
+    const hour = 60 * minute
+    const day = 24 * hour
+    const week = 7 * day
+    const month = 30 * day
+    const year = 365 * day
+
+    let valueNum = 0
+    let unit = 'minute'
+
+    if (absDiff >= year) {
+      valueNum = Math.floor(absDiff / year)
+      unit = 'year'
+    } else if (absDiff >= month) {
+      valueNum = Math.floor(absDiff / month)
+      unit = 'month'
+    } else if (absDiff >= week) {
+      valueNum = Math.floor(absDiff / week)
+      unit = 'week'
+    } else if (absDiff >= day) {
+      valueNum = Math.floor(absDiff / day)
+      unit = 'day'
+    } else if (absDiff >= hour) {
+      valueNum = Math.floor(absDiff / hour)
+      unit = 'hour'
+    } else {
+      valueNum = Math.max(1, Math.floor(absDiff / minute))
+      unit = 'minute'
+    }
+
+    const suffix = valueNum === 1 ? unit : `${unit}s`
+    return future ? `in ${valueNum} ${suffix}` : `${valueNum} ${suffix} ago`
+  }
+
+  const handleVote = (reportId: string, voteType: 'up' | 'down') => {
+    voteReport(reportId, user!.id, voteType)
+    setUpdated(!updated)
+  }
+
+  const handleDelete = (reportId: string) => {
+    deleteReport(reportId)
+    setUpdated(!updated)
   }
 
   if (loading) {
     return <Loading />
   }
   return (
-    <View style={{ flex: 1, backgroundColor: '#f2f4f7', padding: 16 }}>
+    <View style={styles.container}>
       <FlatList
         data={paginated}
         keyExtractor={item => item.id}
+        refreshing={refreshing}
+        onRefresh={() => fetchReports(true)}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.listContent,
+          reports.length === 0 && styles.emptyListContent
+        ]}
         renderItem={({ item }) => {
-          const userVote = item.votes[user!.id]
+          const userVote = user?.id ? item?.votes?.[user.id] : undefined
+          const reportImages = getReportImages(item)
+          const showFullDescription = !!expandedReportIds[item.id]
 
           return (
             <View style={styles.card}>
-              <Image
-                source={require('../../assets/flood.jpg')}
-                style={styles.image}
-              />
+              {reportImages.length > 0 && (
+                <View style={styles.imageRow}>
+                  {reportImages.map((image: string, index: number) => (
+                    <TouchableOpacity
+                      key={`${item.id}-${image}-${index}`}
+                      style={[
+                        styles.imageThumbBtn,
+                        index < reportImages.length - 1 && styles.imageThumbGap
+                      ]}
+                      onPress={() => openImageViewer(reportImages, index)}
+                      activeOpacity={0.9}
+                    >
+                      <Image
+                        source={{ uri: image }}
+                        style={styles.imageThumb}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
 
-              {/* Status badge */}
               {!item.approved && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>Pending</Text>
@@ -162,15 +277,53 @@ export default function ReportPage () {
                   {item.lga}, {item.state}
                 </Text>
 
-                <Text style={styles.description} numberOfLines={3}>
+                <View style={styles.metaRow}>
+                  <View style={styles.metaItem}>
+                    <Ionicons name='person-outline' size={13} color='#6b7280' />
+                    <Text style={styles.metaText}>
+                      {item.creatorName || 'Anonymous'}
+                    </Text>
+                  </View>
+                  <View style={styles.metaItem}>
+                    <Ionicons
+                      name='calendar-outline'
+                      size={13}
+                      color='#6b7280'
+                    />
+                    <Text style={styles.metaText}>
+                      {formatCreatedAt(item.createdAtRaw)}
+                      {formatRelativeTime(item.createdAtRaw)
+                        ? ` (${formatRelativeTime(item.createdAtRaw)})`
+                        : ''}
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  onPress={() => toggleReportDetails(item.id)}
+                  style={styles.detailsBtn}
+                >
+                  <Text style={styles.detailsBtnText}>
+                    {showFullDescription ? 'Hide details' : 'View details'}
+                  </Text>
+                  <Ionicons
+                    name={showFullDescription ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color='#1e90ff'
+                  />
+                </TouchableOpacity>
+
+                <Text
+                  style={styles.description}
+                  numberOfLines={showFullDescription ? undefined : 2}
+                >
                   {item.description}
                 </Text>
 
-                {/* Votes */}
                 <View style={styles.voteRow}>
                   <TouchableOpacity
                     style={styles.voteBtn}
-                    onPress={() => handleVote(item.id, user!.id, 'up')}
+                    onPress={() => handleVote(item.id, 'up')}
                   >
                     <Ionicons
                       name='thumbs-up'
@@ -182,7 +335,7 @@ export default function ReportPage () {
 
                   <TouchableOpacity
                     style={styles.voteBtn}
-                    onPress={() => handleVote(item.id, user!.id, 'down')}
+                    onPress={() => handleVote(item.id, 'down')}
                   >
                     <Ionicons
                       name='thumbs-down'
@@ -193,9 +346,8 @@ export default function ReportPage () {
                   </TouchableOpacity>
                 </View>
 
-                {/* Actions */}
                 <View style={styles.actions}>
-                  {item.createdBy === user!.id && (
+                  {item.creatorId === user!.id && (
                     <TouchableOpacity onPress={() => handleDelete(item.id)}>
                       <Ionicons
                         name='trash-outline'
@@ -218,19 +370,46 @@ export default function ReportPage () {
             </View>
           )
         }}
-        ListFooterComponent={
-          <View style={styles.pagination}>
+        ListEmptyComponent={
+          <View style={styles.emptyCard}>
+            <Ionicons name='document-text-outline' size={44} color='#7b8794' />
+            <Text style={styles.emptyTitle}>No reports yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Pull down to refresh or add your first report.
+            </Text>
             <TouchableOpacity
-              disabled={page === 1}
-              onPress={() => setPage(p => p - 1)}
+              style={styles.emptyAddBtn}
+              onPress={() => setShowModal(true)}
             >
-              <Text>Prev</Text>
-            </TouchableOpacity>
-            <Text>Page {page}</Text>
-            <TouchableOpacity onPress={() => setPage(p => p + 1)}>
-              <Text>Next</Text>
+              <Text style={styles.emptyAddText}>Add Report</Text>
             </TouchableOpacity>
           </View>
+        }
+        ListFooterComponent={
+          reports.length > PAGE_SIZE ? (
+            <View style={styles.pagination}>
+              <TouchableOpacity
+                style={[styles.pageBtn, page === 1 && styles.pageBtnDisabled]}
+                disabled={page === 1}
+                onPress={() => setPage(p => p - 1)}
+              >
+                <Text style={styles.pageBtnText}>Prev</Text>
+              </TouchableOpacity>
+              <Text style={styles.pageText}>
+                Page {page} of {totalPages}
+              </Text>
+              <TouchableOpacity
+                style={[
+                  styles.pageBtn,
+                  page === totalPages && styles.pageBtnDisabled
+                ]}
+                disabled={page === totalPages}
+                onPress={() => setPage(p => p + 1)}
+              >
+                <Text style={styles.pageBtnText}>Next</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
         }
       />
       <View style={styles.fab}>
@@ -241,32 +420,141 @@ export default function ReportPage () {
           <Ionicons name='add' size={24} color='#fff' />
         </TouchableOpacity>
       </View>
-      <AddReportModal
-        visible={showModal}
-        onClose={() => setShowModal(false)}
-        addReport={handleAddReport}
-      />
+      <AddReportModal visible={showModal} onClose={() => setShowModal(false)} />
+
+      <Modal
+        visible={viewerVisible}
+        transparent
+        animationType='fade'
+        onRequestClose={() => setViewerVisible(false)}
+      >
+        <View style={styles.viewerBackdrop}>
+          <TouchableOpacity
+            style={styles.viewerCloseBtn}
+            onPress={() => setViewerVisible(false)}
+          >
+            <Ionicons name='close' size={26} color='#fff' />
+          </TouchableOpacity>
+
+          <FlatList
+            data={viewerImages}
+            horizontal
+            pagingEnabled
+            keyExtractor={(image, index) => `${image}-${index}`}
+            initialScrollIndex={viewerIndex}
+            getItemLayout={(_, index) => ({
+              length: screenWidth,
+              offset: screenWidth * index,
+              index
+            })}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={event => {
+              const nextIndex = Math.round(
+                event.nativeEvent.contentOffset.x / screenWidth
+              )
+              setViewerIndex(nextIndex)
+            }}
+            renderItem={({ item: image }) => (
+              <View style={[styles.viewerImageWrap, { width: screenWidth }]}>
+                <Image source={{ uri: image }} style={styles.viewerImage} />
+              </View>
+            )}
+          />
+
+          <View style={styles.viewerCountPill}>
+            <Text style={styles.viewerCountText}>
+              {viewerImages.length > 0 ? viewerIndex + 1 : 0}/
+              {viewerImages.length}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f2f4f7',
+    paddingHorizontal: 14,
+    paddingTop: 12
+  },
+
+  listContent: {
+    paddingBottom: 90
+  },
+
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: 'center'
+  },
+
   card: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: 14,
+    marginBottom: 12,
     overflow: 'hidden',
     elevation: 3
   },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center'
+
+  imageRow: {
+    flexDirection: 'row',
+    padding: 10,
+    paddingBottom: 0
   },
 
-  image: {
+  imageThumbBtn: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden'
+  },
+
+  imageThumbGap: {
+    marginRight: 6
+  },
+
+  imageThumb: {
     width: '100%',
-    height: 180
+    height: 84
+  },
+
+  emptyCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    alignItems: 'center',
+    elevation: 2
+  },
+
+  emptyTitle: {
+    marginTop: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937'
+  },
+
+  emptySubtitle: {
+    marginTop: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#6b7280',
+    textAlign: 'center'
+  },
+
+  emptyAddBtn: {
+    marginTop: 16,
+    backgroundColor: '#1e90ff',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10
+  },
+
+  emptyAddText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600'
   },
 
   badge: {
@@ -286,39 +574,74 @@ const styles = StyleSheet.create({
   },
 
   cardBody: {
-    padding: 14
+    padding: 12
   },
 
   title: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: 3,
     color: '#222'
   },
 
   location: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#1e90ff',
-    marginBottom: 8
+    marginBottom: 6
   },
 
   description: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#444',
-    lineHeight: 20
+    lineHeight: 18
+  },
+
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+    gap: 8
+  },
+
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1
+  },
+
+  metaText: {
+    marginLeft: 4,
+    color: '#6b7280',
+    fontSize: 11
+  },
+
+  detailsBtn: {
+    marginTop: 6,
+    marginBottom: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start'
+  },
+
+  detailsBtnText: {
+    marginRight: 4,
+    color: '#1e90ff',
+    fontSize: 13,
+    fontWeight: '600'
   },
 
   voteRow: {
     flexDirection: 'row',
-    marginTop: 12
+    marginTop: 10
   },
 
   voteBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    marginRight: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 9,
     backgroundColor: '#f5f5f5',
     borderRadius: 20
   },
@@ -330,12 +653,12 @@ const styles = StyleSheet.create({
 
   actions: {
     borderTopColor: '#27ae60',
-    paddingTop: 10,
+    paddingTop: 8,
     borderTopWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 12
+    marginTop: 10
   },
 
   approveBtn: {
@@ -354,8 +677,31 @@ const styles = StyleSheet.create({
   pagination: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 20,
-    paddingHorizontal: 16
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 4
+  },
+
+  pageBtn: {
+    backgroundColor: '#e7f1ff',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8
+  },
+
+  pageBtnDisabled: {
+    opacity: 0.45
+  },
+
+  pageBtnText: {
+    color: '#1e90ff',
+    fontWeight: '600'
+  },
+
+  pageText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '500'
   },
 
   fab: {
@@ -372,5 +718,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5
+  },
+
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+    justifyContent: 'center'
+  },
+
+  viewerCloseBtn: {
+    position: 'absolute',
+    top: 50,
+    right: 18,
+    zIndex: 5,
+    padding: 8
+  },
+
+  viewerImageWrap: {
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+
+  viewerImage: {
+    width: '92%',
+    height: 400,
+    borderRadius: 14,
+    resizeMode: 'cover'
+  },
+
+  viewerCountPill: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999
+  },
+
+  viewerCountText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600'
   }
 })

@@ -9,7 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ToastAndroid,
-  ScrollView
+  ScrollView,
+  ActivityIndicator
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { Picker } from '@react-native-picker/picker'
@@ -22,14 +23,6 @@ import createAxiosClient from '../api/axiosClient'
 type Props = {
   visible: boolean
   onClose: () => void
-  addReport: (data: {
-    title: string
-    description: string
-    state: string
-    lga: string
-    img: string
-    severity: string
-  }) => void
 }
 
 export default function AddReportModal ({ visible, onClose }: Props) {
@@ -40,9 +33,7 @@ export default function AddReportModal ({ visible, onClose }: Props) {
   const [description, setDescription] = useState('')
   const [selectedState, setSelectedState] = useState('')
   const [selectedLga, setSelectedLga] = useState('')
-  const [severity, setSeverity] = useState<'Low' | 'Moderate' | 'High'>(
-    'Moderate'
-  )
+  const [severity, setSeverity] = useState<'LOW' | 'MODERATE' | 'HIGH'>('LOW')
   const [images, setImages] = useState<
     {
       uri: string
@@ -56,7 +47,7 @@ export default function AddReportModal ({ visible, onClose }: Props) {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: true,
-      quality: 0.7
+      quality: 0.5
     })
 
     if (!result.canceled) {
@@ -65,53 +56,63 @@ export default function AddReportModal ({ visible, onClose }: Props) {
         name: asset.fileName || `report-${Date.now()}-${index}.jpg`,
         type: asset.mimeType || 'image/jpeg'
       }))
-      setImages(prev => [...prev, ...selectedImages])
+
+      setImages(prev => {
+        const combined = [...prev, ...selectedImages].slice(0, 3)
+        if (prev.length + selectedImages.length > 3) {
+          ToastAndroid.show('Maximum of 3 images allowed', ToastAndroid.SHORT)
+        }
+        return combined
+      })
     }
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title || !description || !selectedState || !selectedLga) {
       ToastAndroid.show('Please fill all required fields', ToastAndroid.SHORT)
       return
     }
+
     setLoading(true)
+
     const form = new FormData()
     form.append('title', title)
     form.append('description', description)
     form.append('state', selectedState)
     form.append('lga', selectedLga)
     form.append('severity', severity)
-    images.forEach(image => form.append('files', image as any))
-    // add report
+    form.append('longitude', '0')
+    form.append('latitude', '0')
+
+    images.forEach(image => {
+      form.append('images', {
+        uri: image.uri,
+        name: image.name,
+        type: image.type
+      } as any)
+    })
+
     client
-      .post('reports', form)
+      .post('reports', form, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      })
       .then(res => {
-        console.log('Report submitted successfully:', res.data)
         ToastAndroid.show('Report submitted successfully', ToastAndroid.SHORT)
-        setLoading(false)
+        setTitle('')
+        setDescription('')
+        setSelectedState('')
+        setSelectedLga('')
+        setSeverity('LOW')
+        setImages([])
         onClose()
       })
-      .catch(error => {
-        console.error('Report submission failed:', error)
-        ToastAndroid.show('Report submission failed', ToastAndroid.SHORT)
-        setLoading(false)
+      .catch(err => {
+        console.error('Error submitting report:', err)
+        ToastAndroid.show('Failed to submit report', ToastAndroid.SHORT)
       })
-
-    // reset
-    setTitle('')
-    setDescription('')
-    setSelectedState('')
-    setSelectedLga('')
-    setImages([])
-    onClose()
-  }
-
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Submitting report...</Text>
-      </View>
-    )
+      .finally(() => setLoading(false))
   }
 
   return (
@@ -171,9 +172,9 @@ export default function AddReportModal ({ visible, onClose }: Props) {
             {/* Severity Picker */}
             <View style={styles.pickerWrapper}>
               <Picker selectedValue={severity} onValueChange={setSeverity}>
-                <Picker.Item label='Low' value='Low' />
-                <Picker.Item label='Moderate' value='Moderate' />
-                <Picker.Item label='High' value='High' />
+                <Picker.Item label='Low' value='LOW' />
+                <Picker.Item label='Moderate' value='MODERATE' />
+                <Picker.Item label='High' value='HIGH' />
               </Picker>
             </View>
 
@@ -208,8 +209,19 @@ export default function AddReportModal ({ visible, onClose }: Props) {
             </View>
 
             {/* Submit */}
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-              <Text style={styles.submitText}>Submit Report</Text>
+            <TouchableOpacity
+              style={[styles.submitBtn, loading && styles.submitBtnDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <View style={styles.submitLoadingRow}>
+                  <ActivityIndicator color='#fff' size='small' />
+                  <Text style={styles.submitText}>Submitting...</Text>
+                </View>
+              ) : (
+                <Text style={styles.submitText}>Submit Report</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -262,6 +274,16 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     marginTop: 10
+  },
+
+  submitBtnDisabled: {
+    opacity: 0.7
+  },
+
+  submitLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   },
 
   submitText: {

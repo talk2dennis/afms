@@ -1,13 +1,40 @@
 import axios, { AxiosInstance } from 'axios'
+import Constants from 'expo-constants'
 import { useRouter } from 'expo-router'
 import { useSession } from '../auth/context'
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api'
-// console.log('Axios Base URL:', baseURL)
+const normalizeBaseUrl = (url?: string | null) => {
+  if (!url) {
+    return null
+  }
+  return url.trim().replace(/\/+$/, '')
+}
+
+const resolveBaseUrl = () => {
+  const envUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL)
+  if (envUrl) {
+    return envUrl
+  }
+
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    ''
+
+  const localIp = hostUri.split(':')[0]
+  if (localIp) {
+    return `http://${localIp}:5000/api`
+  }
+
+  return 'http://localhost:5000/api'
+}
+
+const baseURL = resolveBaseUrl()
 
 const createAxiosClient = (session: string | null): AxiosInstance => {
   const client = axios.create({
-    baseURL: baseURL
+    baseURL,
+    timeout: 60000
   })
 
   const { signOut } = useSession()
