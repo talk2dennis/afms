@@ -51,7 +51,7 @@ export default function ReportPage () {
     }
 
     client
-      .get('reports/my-reports')
+      .get('reports')
       .then(res => {
         const payload = Array.isArray(res.data)
           ? res.data
