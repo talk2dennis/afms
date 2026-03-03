@@ -4,15 +4,22 @@ type imgUrl = {
   _id: string
 }
 
+type user = {
+  _id: string
+  name: string
+  email: string
+  role: 'ADMIN' | 'USER'
+}
+
 export type FloodReport = {
-  id: string
+  _id: string
   title: string
   description: string
   images: imgUrl[]
   state: string
   lga: string
-  user: string
-  createdBy: string
+  user: user
+  createdAt: string
   approved: boolean
   upvotes: number
   downvotes: number
@@ -33,7 +40,7 @@ export const getReports = (): FloodReport[] => {
 
 // Function to approve a report
 export const approveReport = (reportId: string) => {
-  const report = sampleReports.find(r => r.id === reportId)
+  const report = sampleReports.find(r => r._id === reportId)
   if (report) {
     report.approved = true
   }
@@ -41,7 +48,7 @@ export const approveReport = (reportId: string) => {
 
 // function to disapprove a report
 export const disapproveReport = (reportId: string) => {
-  const report = sampleReports.find(r => r.id === reportId)
+  const report = sampleReports.find(r => r._id === reportId)
   if (report) {
     report.approved = false
   }
@@ -53,7 +60,7 @@ export const voteReport = (
   userId: string,
   type: 'up' | 'down'
 ) => {
-  const report = sampleReports.find(r => r.id === reportId)
+  const report = sampleReports.find(r => r._id === reportId)
   // if user has already voted, remove previous vote
   if (report?.votes[userId]) {
     const previousVote = report.votes[userId]
@@ -77,7 +84,7 @@ export const voteReport = (
 
 // delete a report
 export const deleteReport = (reportId: string) => {
-  const index = sampleReports.findIndex(r => r.id === reportId)
+  const index = sampleReports.findIndex(r => r._id === reportId)
   if (index !== -1) {
     sampleReports.splice(index, 1)
   }

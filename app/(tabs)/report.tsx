@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   View,
   Text,
@@ -7,20 +6,18 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  Dimensions
+  Dimensions,
+  ToastAndroid
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSession } from '../auth/context'
 import { useEffect, useState } from 'react'
 import Loading from '../components/loading'
 import AddReportModal from '../components/addReportModal'
-import sampleReports, {
-  addReport,
-  getReports,
-  approveReport,
-  disapproveReport,
+import FloodReport, {
   deleteReport,
-  voteReport
+  voteReport,
+  type FloodReport as FloodReportType
 } from '../data/report_data'
 import createAxiosClient from '../api/axiosClient'
 
@@ -29,7 +26,7 @@ export default function ReportPage () {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [reports, setReports] = useState<any[]>(sampleReports as any[])
+  const [reports, setReports] = useState<FloodReportType[]>([])
   const [updated, setUpdated] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [expandedReportIds, setExpandedReportIds] = useState<
@@ -53,37 +50,14 @@ export default function ReportPage () {
     client
       .get('reports')
       .then(res => {
-        const payload = Array.isArray(res.data)
-          ? res.data
-          : Array.isArray(res.data?.data)
-          ? res.data.data
-          : []
-
-        const normalizedReports = payload.map((report: any, index: number) => {
-          const createdAtRaw =
-            report?.createdAt ||
-            report?.created_at ||
-            report?.dateCreated ||
-            null
-
-          return {
-            ...report,
-            id: String(report?.id ?? `report-${index}`),
-            creatorId: String(report?.createdBy ?? report?.user?._id ?? ''),
-            creatorName: report.user == user?.id ? user?.name : 'Anonymous',
-            createdAtRaw,
-            upvotes: Number(report?.upvotes ?? 0),
-            downvotes: Number(report?.downvotes ?? 0),
-            votes:
-              report?.votes && typeof report.votes === 'object'
-                ? report.votes
-                : {}
-          }
-        })
-
-        setReports(normalizedReports)
+        console.log('Fetched reports:', res.data[0])
+        setReports(res.data)
       })
       .catch(error => {
+        ToastAndroid.show(
+          `Failed to fetch reports ${error.message}`,
+          ToastAndroid.SHORT
+        )
         console.log('Failed to fetch reports:', error)
       })
       .finally(() => {
@@ -118,24 +92,10 @@ export default function ReportPage () {
     }))
   }
 
-  const getReportImages = (report: any) => {
-    const imageList = Array.isArray(report?.images)
-      ? report.images
-          .map((img: any) => {
-            if (typeof img === 'string') {
-              return img
-            }
-            return img?.url
-          })
-          .filter(Boolean)
-      : []
-
-    const fallback =
-      typeof report?.imageUrl === 'string' && report.imageUrl.trim().length > 0
-        ? [report.imageUrl]
-        : []
-
-    return [...new Set([...imageList, ...fallback])].slice(0, 3)
+  const getReportImages = (report: FloodReportType) => {
+    // get the first 3 url of the images for the report
+    const imageList = report.images.slice(0, 3).map(img => img.url)
+    return imageList
   }
 
   const openImageViewer = (images: string[], startIndex: number) => {
@@ -226,7 +186,7 @@ export default function ReportPage () {
     <View style={styles.container}>
       <FlatList
         data={paginated}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item._id}
         refreshing={refreshing}
         onRefresh={() => fetchReports(true)}
         showsVerticalScrollIndicator={false}
@@ -237,7 +197,7 @@ export default function ReportPage () {
         renderItem={({ item }) => {
           const userVote = user?.id ? item?.votes?.[user.id] : undefined
           const reportImages = getReportImages(item)
-          const showFullDescription = !!expandedReportIds[item.id]
+          const showFullDescription = !!expandedReportIds[item._id]
 
           return (
             <View style={styles.card}>
@@ -245,7 +205,7 @@ export default function ReportPage () {
                 <View style={styles.imageRow}>
                   {reportImages.map((image: string, index: number) => (
                     <TouchableOpacity
-                      key={`${item.id}-${image}-${index}`}
+                      key={`${item._id}-${image}-${index}`}
                       style={[
                         styles.imageThumbBtn,
                         index < reportImages.length - 1 && styles.imageThumbGap
@@ -281,7 +241,7 @@ export default function ReportPage () {
                   <View style={styles.metaItem}>
                     <Ionicons name='person-outline' size={13} color='#6b7280' />
                     <Text style={styles.metaText}>
-                      {item.creatorName || 'Anonymous'}
+                      {item.user?.name || 'Anonymous'}
                     </Text>
                   </View>
                   <View style={styles.metaItem}>
@@ -291,16 +251,16 @@ export default function ReportPage () {
                       color='#6b7280'
                     />
                     <Text style={styles.metaText}>
-                      {formatCreatedAt(item.createdAtRaw)}
-                      {formatRelativeTime(item.createdAtRaw)
-                        ? ` (${formatRelativeTime(item.createdAtRaw)})`
+                      {formatCreatedAt(item.createdAt)}
+                      {formatRelativeTime(item.createdAt)
+                        ? ` (${formatRelativeTime(item.createdAt)})`
                         : ''}
                     </Text>
                   </View>
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => toggleReportDetails(item.id)}
+                  onPress={() => toggleReportDetails(item._id)}
                   style={styles.detailsBtn}
                 >
                   <Text style={styles.detailsBtnText}>
@@ -323,7 +283,7 @@ export default function ReportPage () {
                 <View style={styles.voteRow}>
                   <TouchableOpacity
                     style={styles.voteBtn}
-                    onPress={() => handleVote(item.id, 'up')}
+                    onPress={() => handleVote(item._id, 'up')}
                   >
                     <Ionicons
                       name='thumbs-up'
@@ -335,7 +295,7 @@ export default function ReportPage () {
 
                   <TouchableOpacity
                     style={styles.voteBtn}
-                    onPress={() => handleVote(item.id, 'down')}
+                    onPress={() => handleVote(item._id, 'down')}
                   >
                     <Ionicons
                       name='thumbs-down'
@@ -347,8 +307,8 @@ export default function ReportPage () {
                 </View>
 
                 <View style={styles.actions}>
-                  {item.creatorId === user!.id && (
-                    <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                  {item.user._id === user!.id && (
+                    <TouchableOpacity onPress={() => handleDelete(item._id)}>
                       <Ionicons
                         name='trash-outline'
                         size={20}
@@ -360,7 +320,7 @@ export default function ReportPage () {
                   {/* {user!.role === "admin" && !item.approved && (
         <TouchableOpacity
           style={styles.approveBtn}
-          onPress={() => handleApprove(item.id)}
+          onPress={() => handleApprove(item._id)}
         > */}
                   {/* <Text style={styles.approveText}>Approve</Text>
         </TouchableOpacity>
@@ -516,7 +476,7 @@ const styles = StyleSheet.create({
 
   imageThumb: {
     width: '100%',
-    height: 84
+    height: 150
   },
 
   emptyCard: {
@@ -559,12 +519,12 @@ const styles = StyleSheet.create({
 
   badge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 10,
+    right: 10,
     backgroundColor: '#f39c12',
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20
+    paddingVertical: 5,
+    borderTopRightRadius: 10
   },
 
   badgeText: {

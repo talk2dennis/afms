@@ -16,7 +16,6 @@ import {
 import { Link } from 'expo-router'
 import colors from '../assets/colors'
 import { useSession, users } from './auth/context'
-import { useStorageState } from './auth/useStorageState'
 
 // login user if session exists
 // const sessionLogin = () => {
@@ -87,7 +86,10 @@ export default function LoginPage () {
       })
       .catch(error => {
         setLoading(false)
-        ToastAndroid.show('Login failed', ToastAndroid.LONG)
+        ToastAndroid.show(
+          `Login failed: ${error.response?.data?.message || error.message}`,
+          ToastAndroid.LONG
+        )
         // console.error('Login error:', error)
       })
   }
