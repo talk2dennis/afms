@@ -67,13 +67,15 @@ const AuthContext = createContext<{
   isAuthenticated?: boolean
   isLoading: boolean
   userData?: User | null
+  setUserData?: (user: User | null) => void
 }>({
   signIn: (user: User, token: string) => null,
   signOut: () => null,
   session: null,
   isLoading: false,
   userData: null,
-  isAuthenticated: false
+  isAuthenticated: false,
+  setUserData: (user: User | null) => null
 })
 
 // Use this hook to access the user info.
@@ -115,7 +117,10 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
         session,
         isLoading: isLoading || loading,
         userData: userData,
-        isAuthenticated: !!session || !!userData
+        isAuthenticated: !!session || !!userData,
+        setUserData: (user: User | null) => {
+          setUserData(user)
+        }
       }}
     >
       {children}

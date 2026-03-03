@@ -80,8 +80,7 @@ export default function LoginPage () {
     client
       .post('auth/login', { email, password })
       .then(res => {
-        const user = res.data.user
-        signIn(user, res.data.token)
+        signIn(res.data.user, res.data.token)
         // toast success message
         ToastAndroid.show('Login successful', ToastAndroid.LONG)
         setLoading(false)

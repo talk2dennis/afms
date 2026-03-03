@@ -13,6 +13,7 @@ import { useSession } from '../auth/context'
 import { fetchWeatherApi } from 'openmeteo'
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons'
 import LoadingComponent from '../components/loading'
+import { AxiosInstance } from 'axios'
 
 /* ----------------------------- Types ----------------------------- */
 
@@ -43,9 +44,11 @@ const getRainStyle = (rain: number) => {
 }
 
 /* -------------------------- update user location -------------------------- */
-const updateUserLocation = async (latitude: number, longitude: number) => {
-  const client = createAxiosClient(null)
-
+const updateUserLocation = async (
+  client: AxiosInstance,
+  latitude: number,
+  longitude: number
+) => {
   client
     .put('auth/me', { location: [latitude, longitude] })
     .then(res => {
@@ -64,11 +67,12 @@ const WEATHER_URL = 'https://api.open-meteo.com/v1/forecast'
 /* ----------------------------- Component ----------------------------- */
 
 export default function HomePage () {
-  const { signOut, userData } = useSession()
+  const { signOut, userData, setUserData } = useSession()
 
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const client = createAxiosClient(userData?.token || null)
 
   /* ------------------------- Weather Loader ------------------------- */
 
@@ -107,8 +111,11 @@ export default function HomePage () {
         console.log(
           `user location obtained: lat=${latitude}, lon=${longitude}, updating server...`
         )
-        const res = await updateUserLocation(latitude, longitude)
+        const res = await updateUserLocation(client, latitude, longitude)
         console.log('User location updated on server:', res)
+        if (setUserData) {
+          setUserData({ ...userData, location: [latitude, longitude] })
+        }
       }
 
       const params = {

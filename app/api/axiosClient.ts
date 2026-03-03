@@ -63,7 +63,6 @@ const createAxiosClient = (session: string | null): AxiosInstance => {
         // remove token from headers
         delete client.defaults.headers.common['Authorization']
         signOut()
-        router.replace('/signin')
       }
       return Promise.reject(error)
     }

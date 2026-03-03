@@ -32,6 +32,7 @@ export default function RegisterPage () {
   const [image, setImage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
+  const client = createAxiosClient(null)
 
   const lgaOptions = statesLGAs.find(s => s.state === selectedState)?.lgas || []
 
@@ -45,52 +46,53 @@ export default function RegisterPage () {
     setPage(page - 1)
   }
 
-  const handleRegister = () => {
-    // check that all fields are filled
-    console.log('registering user')
+  // handle registration
+  const handleRegister = async () => {
+    setLoading(true)
+    // check fields are valid
     if (
       !name ||
       !email ||
+      !password ||
       !confirmPassword ||
       !selectedState ||
       !selectedLga ||
       !gsm
     ) {
-      ToastAndroid.show('Please all fields are required', ToastAndroid.LONG)
+      ToastAndroid.show('Please fill in all fields', ToastAndroid.LONG)
       return
     }
-    // check password for match
-    if (password != confirmPassword) {
-      setError({ ...error, password: 'not match' })
-      ToastAndroid.show('Passwords do not match', ToastAndroid.SHORT)
+    // check password match
+    if (password !== confirmPassword) {
+      ToastAndroid.show('Passwords do not match', ToastAndroid.LONG)
       return
     }
-    // submit form
-    setLoading(true)
-    const client = createAxiosClient(null)
-    client
-      .post('auth/register', {
+    // submit registration
+    try {
+      // submit registration data to backend
+      const res = await client.post('auth/register', {
         name,
         email,
         password,
         state: selectedState,
         lga: selectedLga,
-        phone: gsm
+        gsm
       })
-      .then(response => {
-        console.log('Registration successful:', response.data)
-        setLoading(false)
-        ToastAndroid.show(
-          'Registration successful, Proceed to login',
-          ToastAndroid.LONG
-        )
-        router.replace('/signin')
-      })
-      .catch(error => {
-        setLoading(false)
-        ToastAndroid.show('Registration failed', ToastAndroid.LONG)
-        console.error('Registration error:', error)
-      })
+      console.log('Registration successful:', res.data)
+      ToastAndroid.show(
+        'Registration successful. Please login.',
+        ToastAndroid.LONG
+      )
+      router.push('/signin')
+    } catch (error) {
+      console.error('Registration error:', error)
+      ToastAndroid.show(
+        'Registration failed. Please try again.',
+        ToastAndroid.LONG
+      )
+    } finally {
+      setLoading(false)
+    }
   }
 
   // if loading show loading indicator
@@ -151,6 +153,7 @@ export default function RegisterPage () {
           <TextInput
             style={styles.input}
             placeholder='Password'
+            autoCapitalize='none'
             placeholderTextColor={colors.gray}
             secureTextEntry
             value={password}
@@ -159,6 +162,7 @@ export default function RegisterPage () {
           <TextInput
             style={styles.input}
             placeholder='Confirm Password'
+            autoCapitalize='none'
             placeholderTextColor={colors.gray}
             secureTextEntry
             value={confirmPassword}
