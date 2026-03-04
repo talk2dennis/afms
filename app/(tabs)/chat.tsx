@@ -4,14 +4,14 @@ import {
   FlatList,
   StyleSheet,
   ToastAndroid,
-  ScrollView,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  ActivityIndicator,
+  Text
 } from 'react-native'
 import ChatBubble from '../components/chatBubble'
 import ChatInput from '../components/chatInput'
 import ChatHeader from '../components/chatHeader'
-import mockAIResponse from '../data/mockAI'
 import speak from '../utils/speak'
 import createAxiosClient from '../api/axiosClient'
 
@@ -32,7 +32,6 @@ export default function ChatPage () {
   const { userData } = useSession()
   const client = createAxiosClient(userData?.token || null)
   const [loading, setLoading] = useState(false)
-  const [response, setResponse] = useState<ChatResponse | null>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -77,25 +76,32 @@ export default function ChatPage () {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+      style={styles.container}
     >
-      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-        <ChatHeader />
-        {/* loading indicator */}
-        <View style={{ padding: 16 }}>
-          {loading && <ChatBubble message='...' isUser={false} />}
-        </View>
-        <FlatList
-          data={messages}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <ChatBubble message={item.text} isUser={item.sender === 'user'} />
-          )}
-          contentContainerStyle={{ padding: 16 }}
-        />
+      <ChatHeader />
+      <FlatList
+        data={messages}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <ChatBubble message={item.text} isUser={item.sender === 'user'} />
+        )}
+        ListFooterComponent={
+          loading
+            ? () => (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator size='small' />
+                  <Text style={styles.loadingText}>AI is typing...</Text>
+                </View>
+              )
+            : null
+        }
+        keyboardShouldPersistTaps='handled'
+        contentContainerStyle={styles.messagesContent}
+        style={styles.messagesList}
+      />
 
-        <ChatInput onSend={handleSend} />
-      </ScrollView>
+      <ChatInput onSend={handleSend} />
     </KeyboardAvoidingView>
   )
 }
@@ -103,6 +109,23 @@ export default function ChatPage () {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    paddingBottom: 10
+  },
+  messagesList: {
+    flex: 1
+  },
+  messagesContent: {
+    padding: 16
+  },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    alignSelf: 'flex-start'
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#666'
   }
 })

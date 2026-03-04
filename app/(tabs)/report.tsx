@@ -7,7 +7,9 @@ import {
   StyleSheet,
   Modal,
   Dimensions,
-  ToastAndroid
+  ToastAndroid,
+  TextInput,
+  Alert
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useSession } from '../auth/context'
@@ -35,6 +37,11 @@ export default function ReportPage () {
   const [viewerVisible, setViewerVisible] = useState(false)
   const [viewerImages, setViewerImages] = useState<string[]>([])
   const [viewerIndex, setViewerIndex] = useState(0)
+  const [stateFilter, setStateFilter] = useState('')
+  const [lgaFilter, setLgaFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'approved' | 'pending'
+  >('all')
   const screenWidth = Dimensions.get('window').width
 
   const { userData } = useSession()
@@ -50,7 +57,6 @@ export default function ReportPage () {
     client
       .get('reports')
       .then(res => {
-        console.log('Fetched reports:', res.data[0])
         setReports(res.data)
       })
       .catch(error => {
@@ -58,7 +64,6 @@ export default function ReportPage () {
           `Failed to fetch reports ${error.message}`,
           ToastAndroid.SHORT
         )
-        console.log('Failed to fetch reports:', error)
       })
       .finally(() => {
         if (isRefreshing) {
@@ -75,15 +80,50 @@ export default function ReportPage () {
   }, [updated])
 
   const PAGE_SIZE = 10
-  const totalPages = Math.max(1, Math.ceil(reports.length / PAGE_SIZE))
+  const filteredReports = reports.filter(report => {
+    const matchesState =
+      !stateFilter ||
+      report.state?.toLowerCase().includes(stateFilter.trim().toLowerCase())
 
-  const paginated = reports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+    const matchesLga =
+      !lgaFilter ||
+      report.lga?.toLowerCase().includes(lgaFilter.trim().toLowerCase())
+
+    const matchesStatus =
+      statusFilter === 'all'
+        ? true
+        : statusFilter === 'approved'
+        ? report.approved
+        : !report.approved
+
+    return matchesState && matchesLga && matchesStatus
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / PAGE_SIZE))
+
+  const paginated = filteredReports.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  )
 
   useEffect(() => {
     if (page > totalPages) {
       setPage(totalPages)
     }
   }, [page, totalPages])
+
+  useEffect(() => {
+    setPage(1)
+  }, [stateFilter, lgaFilter, statusFilter])
+
+  const hasActiveFilters =
+    !!stateFilter.trim() || !!lgaFilter.trim() || statusFilter !== 'all'
+
+  const clearFilters = () => {
+    setStateFilter('')
+    setLgaFilter('')
+    setStatusFilter('all')
+  }
 
   const toggleReportDetails = (reportId: string) => {
     setExpandedReportIds(prev => ({
@@ -175,8 +215,39 @@ export default function ReportPage () {
   }
 
   const handleDelete = (reportId: string) => {
-    deleteReport(reportId)
-    setUpdated(!updated)
+    // confirm before deleting
+    Alert.alert(
+      'Confirm delete',
+      'Are you sure you want to delete this report?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setLoading(true)
+            client
+              .delete(`reports/${reportId}`)
+              .then(res => {
+                ToastAndroid.show('Report deleted', ToastAndroid.SHORT)
+                setUpdated(!updated)
+              })
+              .catch(error => {
+                ToastAndroid.show(
+                  `Failed to delete report: ${error.message}`,
+                  ToastAndroid.SHORT
+                )
+              })
+              .finally(() => {
+                setLoading(false)
+              })
+          }
+        }
+      ]
+    )
   }
 
   if (loading) {
@@ -192,8 +263,83 @@ export default function ReportPage () {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.listContent,
-          reports.length === 0 && styles.emptyListContent
+          filteredReports.length === 0 && styles.emptyListContent
         ]}
+        ListHeaderComponent={
+          <View style={styles.filtersWrap}>
+            <TextInput
+              value={stateFilter}
+              onChangeText={setStateFilter}
+              placeholder='Filter by state (e.g. Lagos)'
+              placeholderTextColor='#9ca3af'
+              style={styles.filterInput}
+            />
+            <TextInput
+              value={lgaFilter}
+              onChangeText={setLgaFilter}
+              placeholder='Filter by LGA (e.g. Ikeja)'
+              placeholderTextColor='#9ca3af'
+              style={styles.filterInput}
+            />
+
+            <View style={styles.statusRow}>
+              <TouchableOpacity
+                onPress={() => setStatusFilter('all')}
+                style={[
+                  styles.statusBtn,
+                  statusFilter === 'all' && styles.statusBtnActive
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    statusFilter === 'all' && styles.statusTextActive
+                  ]}
+                >
+                  All
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStatusFilter('approved')}
+                style={[
+                  styles.statusBtn,
+                  statusFilter === 'approved' && styles.statusBtnActive
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    statusFilter === 'approved' && styles.statusTextActive
+                  ]}
+                >
+                  Approved
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStatusFilter('pending')}
+                style={[
+                  styles.statusBtn,
+                  statusFilter === 'pending' && styles.statusBtnActive
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    statusFilter === 'pending' && styles.statusTextActive
+                  ]}
+                >
+                  Pending
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {hasActiveFilters && (
+              <TouchableOpacity onPress={clearFilters} style={styles.clearBtn}>
+                <Text style={styles.clearBtnText}>Clear filters</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
         renderItem={({ item }) => {
           const userVote = user?.id ? item?.votes?.[user.id] : undefined
           const reportImages = getReportImages(item)
@@ -333,9 +479,13 @@ export default function ReportPage () {
         ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Ionicons name='document-text-outline' size={44} color='#7b8794' />
-            <Text style={styles.emptyTitle}>No reports yet</Text>
+            <Text style={styles.emptyTitle}>
+              {hasActiveFilters ? 'No matching reports' : 'No reports yet'}
+            </Text>
             <Text style={styles.emptySubtitle}>
-              Pull down to refresh or add your first report.
+              {hasActiveFilters
+                ? 'Try adjusting your state, LGA, or status filters.'
+                : 'Pull down to refresh or add your first report.'}
             </Text>
             <TouchableOpacity
               style={styles.emptyAddBtn}
@@ -346,7 +496,7 @@ export default function ReportPage () {
           </View>
         }
         ListFooterComponent={
-          reports.length > PAGE_SIZE ? (
+          filteredReports.length > PAGE_SIZE ? (
             <View style={styles.pagination}>
               <TouchableOpacity
                 style={[styles.pageBtn, page === 1 && styles.pageBtnDisabled]}
@@ -443,6 +593,67 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingBottom: 90
+  },
+
+  filtersWrap: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12
+  },
+
+  filterInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#f9fafb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 13,
+    color: '#111827',
+    marginBottom: 8
+  },
+
+  statusRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 4
+  },
+
+  statusBtn: {
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    backgroundColor: '#eff6ff',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7
+  },
+
+  statusBtnActive: {
+    backgroundColor: '#1e90ff',
+    borderColor: '#1e90ff'
+  },
+
+  statusText: {
+    color: '#1e90ff',
+    fontWeight: '600',
+    fontSize: 12
+  },
+
+  statusTextActive: {
+    color: '#fff'
+  },
+
+  clearBtn: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 8,
+    paddingVertical: 4
+  },
+
+  clearBtnText: {
+    color: '#1e90ff',
+    fontSize: 12,
+    fontWeight: '600'
   },
 
   emptyListContent: {
