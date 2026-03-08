@@ -19,6 +19,7 @@ export type FloodReport = {
   state: string
   lga: string
   user: user
+  status: 'VERIFIED' | 'PENDING' | 'REJECTED'
   createdAt: string
   approved: boolean
   upvotes: number

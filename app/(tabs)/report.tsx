@@ -40,7 +40,7 @@ export default function ReportPage () {
   const [stateFilter, setStateFilter] = useState('')
   const [lgaFilter, setLgaFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<
-    'all' | 'approved' | 'pending'
+    FloodReportType['status'] | 'all'
   >('all')
   const screenWidth = Dimensions.get('window').width
 
@@ -92,9 +92,11 @@ export default function ReportPage () {
     const matchesStatus =
       statusFilter === 'all'
         ? true
-        : statusFilter === 'approved'
-        ? report.approved
-        : !report.approved
+        : statusFilter === 'VERIFIED'
+        ? report.status === 'VERIFIED'
+        : statusFilter === 'PENDING'
+        ? report.status === 'PENDING'
+        : report.status === 'REJECTED'
 
     return matchesState && matchesLga && matchesStatus
   })
@@ -300,35 +302,51 @@ export default function ReportPage () {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setStatusFilter('approved')}
+                onPress={() => setStatusFilter('VERIFIED')}
                 style={[
                   styles.statusBtn,
-                  statusFilter === 'approved' && styles.statusBtnActive
+                  statusFilter === 'VERIFIED' && styles.statusBtnActive
                 ]}
               >
                 <Text
                   style={[
                     styles.statusText,
-                    statusFilter === 'approved' && styles.statusTextActive
+                    statusFilter === 'VERIFIED' && styles.statusTextActive
                   ]}
                 >
-                  Approved
+                  Verified
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => setStatusFilter('pending')}
+                onPress={() => setStatusFilter('PENDING')}
                 style={[
                   styles.statusBtn,
-                  statusFilter === 'pending' && styles.statusBtnActive
+                  statusFilter === 'PENDING' && styles.statusBtnActive
                 ]}
               >
                 <Text
                   style={[
                     styles.statusText,
-                    statusFilter === 'pending' && styles.statusTextActive
+                    statusFilter === 'PENDING' && styles.statusTextActive
                   ]}
                 >
                   Pending
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setStatusFilter('REJECTED')}
+                style={[
+                  styles.statusBtn,
+                  statusFilter === 'REJECTED' && styles.statusBtnActive
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    statusFilter === 'REJECTED' && styles.statusTextActive
+                  ]}
+                >
+                  Rejected
                 </Text>
               </TouchableOpacity>
             </View>
@@ -368,11 +386,22 @@ export default function ReportPage () {
                 </View>
               )}
 
-              {!item.approved && (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>Pending</Text>
-                </View>
-              )}
+              <View
+                style={[
+                  styles.badge,
+                  item.status === 'VERIFIED'
+                    ? styles.badgeApproved
+                    : styles.badgePending
+                ]}
+              >
+                <Text style={styles.badgeText}>
+                  {item.status === 'VERIFIED'
+                    ? 'Verified'
+                    : item.status === 'PENDING'
+                    ? 'Pending'
+                    : 'Rejected'}
+                </Text>
+              </View>
 
               <View style={styles.cardBody}>
                 <Text style={styles.title}>{item.title}</Text>
@@ -730,12 +759,19 @@ const styles = StyleSheet.create({
 
   badge: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#f39c12',
+    top: 4,
+    right: 4,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderTopRightRadius: 10
+  },
+
+  badgePending: {
+    backgroundColor: '#f39c12'
+  },
+
+  badgeApproved: {
+    backgroundColor: '#2e7d32'
   },
 
   badgeText: {

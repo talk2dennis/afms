@@ -1,4 +1,12 @@
-import { use, createContext, type PropsWithChildren, useState } from 'react'
+import {
+  use,
+  createContext,
+  type PropsWithChildren,
+  useEffect,
+  useState
+} from 'react'
+import axios from 'axios'
+import Constants from 'expo-constants'
 
 import { useStorageState } from './useStorageState'
 
@@ -60,6 +68,32 @@ export const weatherContext = {
   floodRisk: 'High'
 }
 
+const normalizeBaseUrl = (url?: string | null) => {
+  if (!url) {
+    return null
+  }
+  return url.trim().replace(/\/+$/, '')
+}
+
+const resolveBaseUrl = () => {
+  const envUrl = normalizeBaseUrl(process.env.EXPO_PUBLIC_API_URL)
+  if (envUrl) {
+    return envUrl
+  }
+
+  const hostUri =
+    Constants.expoConfig?.hostUri ||
+    (Constants as any).manifest2?.extra?.expoClient?.hostUri ||
+    ''
+
+  const localIp = hostUri.split(':')[0]
+  if (localIp) {
+    return `http://${localIp}:5000/api`
+  }
+
+  return 'http://localhost:5000/api'
+}
+
 const AuthContext = createContext<{
   signIn: (user: User, token: string) => void
   signOut: () => void
@@ -91,17 +125,49 @@ export function useSession () {
 export default function SessionProvider ({ children }: PropsWithChildren) {
   const [[isLoading, session], setSession] = useStorageState('session-token')
   const [loading, setLoading] = useState(false)
+  const [isRestoringSession, setIsRestoringSession] = useState(true)
   const [userData, setUserData] = useState<User | null>(null)
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      if (isLoading) {
+        return
+      }
+
+      if (!session) {
+        setUserData(null)
+        setIsRestoringSession(false)
+        return
+      }
+
+      try {
+        setIsRestoringSession(true)
+        const response = await axios.get(`${resolveBaseUrl()}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${session}`
+          },
+          timeout: 60000
+        })
+
+        const backendUser = response.data?.user ?? response.data
+        setUserData({ ...backendUser, token: session })
+      } catch (error) {
+        setUserData(null)
+        setSession(null)
+      } finally {
+        setIsRestoringSession(false)
+      }
+    }
+
+    restoreSession()
+  }, [isLoading, session])
 
   return (
     <AuthContext.Provider
       value={{
         signIn: (user: User, token: string) => {
-          setLoading(true)
           setUserData({ ...user, token: token })
-
           setSession(token)
-          setLoading(false)
         },
         signOut: () => {
           setLoading(true)
@@ -115,7 +181,7 @@ export default function SessionProvider ({ children }: PropsWithChildren) {
         },
 
         session,
-        isLoading: isLoading || loading,
+        isLoading: isLoading || loading || isRestoringSession,
         userData: userData,
         isAuthenticated: !!session || !!userData,
         setUserData: (user: User | null) => {

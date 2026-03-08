@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import createAxiosClient from './api/axiosClient'
 import LoadingComponent from './components/loading'
 import {
@@ -34,9 +34,9 @@ export default function LoginPage () {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { signIn, session } = useSession()
+  const { signIn } = useSession()
 
-  const client = createAxiosClient(session || null)
+  const client = createAxiosClient(null)
 
   const guest = users.find(u => u.email === 'guest@example.com')
   // handle guest login
@@ -48,23 +48,6 @@ export default function LoginPage () {
       )
     }
   }
-
-  // if session exists, login user
-  useEffect(() => {
-    if (session) {
-      setLoading(true)
-      client
-        .get('auth/me')
-        .then(res => {
-          console.log('Session login successful:', res.data)
-          signIn(res.data, res.data.token)
-        })
-        .catch(error => {
-          console.error('Session login failed:', error)
-          setLoading(false)
-        })
-    }
-  }, [session])
 
   const handleLogin = () => {
     // handle login logic
