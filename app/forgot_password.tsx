@@ -35,12 +35,16 @@ export default function ForgotPassword () {
     try {
       setLoading(true)
       await client.post('auth/forgot-password', { email })
-      Alert.alert('Reset Link Sent', 'A password reset link has been sent to your email.')
+      Alert.alert(
+        'Reset Link Sent',
+        'A password reset link has been sent to your email.'
+      )
       setStep(2)
     } catch (error: any) {
       Alert.alert(
         'Request Failed',
-        error?.response?.data?.message || 'Unable to send reset link. Please try again.'
+        error?.response?.data?.message ||
+          'Unable to send reset link. Please try again.'
       )
     } finally {
       setLoading(false)
@@ -65,8 +69,7 @@ export default function ForgotPassword () {
 
     try {
       setLoading(true)
-      await client.post('auth/reset-password', {
-        token: token.trim(),
+      await client.post(`auth/reset-password/${token.trim()}`, {
         newPassword: password
       })
       Alert.alert('Success', 'Password changed successfully. Please sign in.')
@@ -74,7 +77,8 @@ export default function ForgotPassword () {
     } catch (error: any) {
       Alert.alert(
         'Reset Failed',
-        error?.response?.data?.message || 'Unable to reset password. Please try again.'
+        error?.response?.data?.message ||
+          'Unable to reset password. Please try again.'
       )
     } finally {
       setLoading(false)
@@ -92,7 +96,9 @@ export default function ForgotPassword () {
             {step === 1 && (
               <>
                 <Text style={styles.title}>Forgot Password</Text>
-                <Text style={styles.text}>Enter your email to receive a reset link.</Text>
+                <Text style={styles.text}>
+                  Enter your email to receive a reset link.
+                </Text>
 
                 <TextInput
                   style={styles.input}
@@ -113,6 +119,14 @@ export default function ForgotPassword () {
                     {loading ? 'Sending...' : 'Send Reset Link'}
                   </Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={() => setStep(3)}
+                  disabled={loading}
+                >
+                  <Text style={styles.linkText}>I already have a token</Text>
+                </TouchableOpacity>
               </>
             )}
 
@@ -120,20 +134,27 @@ export default function ForgotPassword () {
               <>
                 <Text style={styles.title}>Check Your Email</Text>
                 <Text style={styles.text}>
-                  We sent a password reset link to {email}. Click the link to open the web page
-                  where you can set a new password.
+                  We sent a password reset link to {email}. Click the link to
+                  open the web page where you can set a new password.
                 </Text>
                 <Text style={styles.text}>
-                  If you prefer, copy the token from your email and paste it here to complete the
-                  password change in the app.
+                  If you prefer, copy the token from your email and paste it
+                  here to complete the password change in the app.
                 </Text>
 
-                <TouchableOpacity style={styles.button} onPress={() => setStep(3)}>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={() => setStep(3)}
+                >
                   <Text style={styles.buttonText}>I Have A Token</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.button, styles.secondaryButton, loading && styles.buttonDisabled]}
+                  style={[
+                    styles.button,
+                    styles.secondaryButton,
+                    loading && styles.buttonDisabled
+                  ]}
                   onPress={requestPasswordReset}
                   disabled={loading}
                 >
@@ -167,6 +188,7 @@ export default function ForgotPassword () {
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
+                  autoCapitalize='none'
                 />
 
                 <TextInput
@@ -176,6 +198,7 @@ export default function ForgotPassword () {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry
+                  autoCapitalize='none'
                 />
 
                 <TouchableOpacity
@@ -254,5 +277,14 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6
+  },
+  linkButton: {
+    marginTop: 14,
+    alignItems: 'center'
+  },
+  linkText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: '600'
   }
 })

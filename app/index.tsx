@@ -49,17 +49,6 @@ const WelcomePage = () => {
 
   return (
     <View style={styles.container}>
-      {page === 0 && (
-        <View style={styles.topControls}>
-          <TouchableOpacity
-            style={styles.toggleBtn}
-            onPress={() => setShowLogoutAction(prev => !prev)}
-          >
-            <Text style={styles.toggleBtnText}>Menu</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       <Image
         source={require('../assets/afms_logo.png')}
         style={styles.logo}
